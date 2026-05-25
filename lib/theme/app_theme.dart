@@ -1,0 +1,107 @@
+import 'package:flutter/material.dart';
+
+class AppColors {
+  static const primary = Color(0xFF2563EB);
+  static const primaryDark = Color(0xFF1D4ED8);
+  static const accent = Color(0xFFF59E0B);
+  static const success = Color(0xFF10B981);
+  static const successDark = Color(0xFF059669);
+  static const destructive = Color(0xFFEF4444);
+  static const background = Color(0xFFFFFFFF);
+  static const muted = Color(0xFFF1F5F9);
+  static const card = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE2E8F0);
+  static const secondary = Color(0xFF1E293B);
+  static const mutedForeground = Color(0xFF94A3B8);
+  static const primaryForeground = Color(0xFFFFFFFF);
+
+  static const heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF0F172A)],
+    stops: [0.0, 0.5, 1.0],
+  );
+
+  static const flashGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
+  );
+
+  static const primaryGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+  );
+
+  static const successGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF10B981), Color(0xFF059669)],
+  );
+
+  static const neonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
+  );
+}
+
+class AppTextStyles {
+  static const h1 = TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.secondary);
+  static const h2 = TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.secondary);
+  static const h3 = TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.secondary);
+  static const body = TextStyle(fontSize: 14, color: AppColors.secondary);
+  static const caption = TextStyle(fontSize: 11, color: AppColors.mutedForeground);
+  static const price = TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary);
+  static const priceOld = TextStyle(
+    fontSize: 12,
+    decoration: TextDecoration.lineThrough,
+    color: AppColors.mutedForeground,
+  );
+}
+
+class AppShadows {
+  static const card = [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2))];
+  static const lift = [BoxShadow(color: Color(0x1A000000), blurRadius: 16, offset: Offset(0, 4))];
+}
+
+ThemeData appTheme() {
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: const ColorScheme.light(
+      primary: AppColors.primary,
+      surface: AppColors.background,
+      error: AppColors.destructive,
+    ),
+    scaffoldBackgroundColor: AppColors.background,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.background,
+      foregroundColor: AppColors.secondary,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+    ),
+    cardTheme: const CardThemeData(
+      color: AppColors.card,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+    ),
+    dividerTheme: const DividerThemeData(color: AppColors.border, space: 0),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+      filled: true,
+      fillColor: AppColors.background,
+    ),
+  );
+}
