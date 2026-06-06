@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
-import '../data/seed_data.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
 import '../providers/cart_provider.dart';
 import '../utils/format_utils.dart';
 import '../widgets/product_card.dart';
@@ -18,21 +18,161 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  // ── UI state ───────────────────────────────────────────────────────────────
   int _imgIndex = 0;
   int _qty = 1;
   String _tab = 'specs';
 
+  // ── Data state ─────────────────────────────────────────────────────────────
+  Product? _product;
+  List<Product> _related = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProduct();
+  }
+
+  // ── Load product from API ──────────────────────────────────────────────────
+  Future<void> _loadProduct() async {
+    if (!mounted) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
+
+    try {
+      final id = int.tryParse(widget.productId);
+      if (id == null) throw const ApiException(statusCode: 0, message: 'ID sản phẩm không hợp lệ');
+
+      final api = ApiService();
+      final apiProduct = await api.getProductById(id);
+      final product = Product.fromApi(apiProduct);
+
+      // Lấy sản phẩm liên quan theo cùng danh mục
+      List<Product> related = [];
+      if (apiProduct.categoryId != null) {
+        final relatedPage = await api.getProducts(
+          categoryId: apiProduct.categoryId,
+          size: 8,
+        );
+        related = relatedPage.content
+            .where((p) => p.productId != id)
+            .take(6)
+            .map((p) => Product.fromApi(p))
+            .toList();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _product = product;
+        _related = related;
+        _isLoading = false;
+        _imgIndex = 0;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e is ApiException ? e.message : e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final p = findProduct(widget.productId);
-    if (p == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Sản phẩm')),
-        body: const Center(child: Text('Không tìm thấy sản phẩm', style: TextStyle(color: AppColors.mutedForeground))),
-      );
-    }
-    final discount = ((p.oldPrice - p.price) / p.oldPrice * 100).round();
-    final related = products.where((x) => x.category == p.category && x.id != p.id).take(6).toList();
+    if (_isLoading) return _buildLoading();
+    if (_errorMessage != null) return _buildError();
+    if (_product == null) return _buildNotFound();
+    return _buildContent(_product!);
+  }
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
+  Widget _buildLoading() {
+    return Scaffold(
+      body: Column(
+        children: [
+          // Image area shimmer
+          _AnimatedShimmer(
+            child: Container(
+              color: Colors.grey[300],
+              height: MediaQuery.of(context).size.width,
+              width: double.infinity,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Text shimmer
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AnimatedShimmer(child: Container(height: 28, width: 160, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(6)))),
+                const SizedBox(height: 10),
+                _AnimatedShimmer(child: Container(height: 16, width: double.infinity, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(6)))),
+                const SizedBox(height: 6),
+                _AnimatedShimmer(child: Container(height: 16, width: 200, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(6)))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.chevron_left, color: AppColors.secondary, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(color: AppColors.destructive.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.error_outline, size: 36, color: AppColors.destructive),
+              ),
+              const SizedBox(height: 16),
+              const Text('Không thể tải sản phẩm', style: AppTextStyles.h3),
+              const SizedBox(height: 8),
+              Text(_errorMessage ?? '', style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: _loadProduct,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(12)),
+                  child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotFound() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sản phẩm')),
+      body: const Center(child: Text('Không tìm thấy sản phẩm', style: TextStyle(color: AppColors.mutedForeground))),
+    );
+  }
+
+  // ── Main product content ───────────────────────────────────────────────────
+  Widget _buildContent(Product p) {
+    final discount = p.oldPrice > p.price
+        ? ((p.oldPrice - p.price) / p.oldPrice * 100).round()
+        : 0;
 
     return Scaffold(
       body: Column(
@@ -46,10 +186,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     children: [
                       AspectRatio(
                         aspectRatio: 1,
-                        child: Image.network(
-                          p.images[_imgIndex],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(color: AppColors.muted),
+                        child: GestureDetector(
+                          onHorizontalDragEnd: (d) {
+                            if (d.primaryVelocity == null) return;
+                            if (d.primaryVelocity! < -200 && _imgIndex < p.images.length - 1) {
+                              setState(() => _imgIndex++);
+                            } else if (d.primaryVelocity! > 200 && _imgIndex > 0) {
+                              setState(() => _imgIndex--);
+                            }
+                          },
+                          child: Image.network(
+                            p.images[_imgIndex],
+                            fit: BoxFit.cover,
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return Container(color: AppColors.muted, child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)));
+                            },
+                            errorBuilder: (_, __, ___) => Container(color: AppColors.muted, child: const Icon(Icons.image_not_supported, size: 64, color: AppColors.mutedForeground)),
+                          ),
                         ),
                       ),
                       Positioned(
@@ -68,49 +222,53 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ],
                         ),
                       ),
-                      Positioned(
-                        bottom: 12,
-                        left: 0, right: 0,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(p.images.length, (i) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: i == _imgIndex ? 20 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: i == _imgIndex ? AppColors.primary : Colors.white70,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          )),
+                      if (p.images.length > 1)
+                        Positioned(
+                          bottom: 12,
+                          left: 0, right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(p.images.length, (i) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: i == _imgIndex ? 20 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: i == _imgIndex ? AppColors.primary : Colors.white70,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            )),
+                          ),
                         ),
-                      ),
                     ],
                   ),
+
                   // Thumbnail strip
-                  SizedBox(
-                    height: 72,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: p.images.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, i) => GestureDetector(
-                        onTap: () => setState(() => _imgIndex = i),
-                        child: Container(
-                          width: 56, height: 56,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: i == _imgIndex ? AppColors.primary : Colors.transparent, width: 2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.network(p.images[i], fit: BoxFit.cover),
+                  if (p.images.length > 1)
+                    SizedBox(
+                      height: 72,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: p.images.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, i) => GestureDetector(
+                          onTap: () => setState(() => _imgIndex = i),
+                          child: Container(
+                            width: 56, height: 56,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: i == _imgIndex ? AppColors.primary : Colors.transparent, width: 2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(p.images[i], fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: AppColors.muted)),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Price + name card
                   _Card(
@@ -144,9 +302,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             Text(p.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
                             Text(' (${p.reviews})', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                             const Text(' · ', style: TextStyle(color: AppColors.mutedForeground)),
-                            Text('Đã bán ${p.sold.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                            Text('Đã bán ${formatSold(p.sold)}', style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                             const Text(' · ', style: TextStyle(color: AppColors.mutedForeground)),
-                            Text(p.stock > 0 ? 'Còn hàng' : 'Hết hàng', style: TextStyle(fontSize: 12, color: p.stock > 0 ? AppColors.success : AppColors.destructive, fontWeight: FontWeight.w500)),
+                            Text(p.stock > 0 ? 'Còn hàng' : 'Hết hàng',
+                                style: TextStyle(fontSize: 12, color: p.stock > 0 ? AppColors.success : AppColors.destructive, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ],
@@ -158,9 +317,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: Column(
                       children: [
-                        _InfoRow(icon: Icons.local_shipping_outlined, text: 'Giao 2h tại nội thành · Miễn phí từ 500.000 ₫'),
+                        const _InfoRow(icon: Icons.local_shipping_outlined, text: 'Giao 2h tại nội thành · Miễn phí từ 500.000 ₫'),
                         const Divider(height: 12, color: AppColors.border),
-                        _InfoRow(icon: Icons.verified_user_outlined, text: 'Bảo hành chính hãng ${p.specs['Bảo hành'] ?? '12 tháng'}'),
+                        const _InfoRow(icon: Icons.verified_user_outlined, text: 'Bảo hành chính hãng 12 tháng'),
                         const Divider(height: 12, color: AppColors.border),
                         const _InfoRow(icon: Icons.replay_outlined, text: 'Đổi trả trong 7 ngày'),
                       ],
@@ -178,7 +337,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         const SizedBox(width: 12),
                         SizedBox(width: 32, child: Text('$_qty', textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.secondary))),
                         const SizedBox(width: 12),
-                        _QtyBtn(icon: Icons.add, onTap: () => setState(() => _qty++)),
+                        _QtyBtn(icon: Icons.add, onTap: _qty < p.stock ? () => setState(() => _qty++) : null),
                       ],
                     ),
                   ),
@@ -190,12 +349,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            _TabBtn(label: 'Thông số', active: _tab == 'specs', onTap: () => setState(() => _tab = 'specs')),
                             _TabBtn(label: 'Mô tả', active: _tab == 'desc', onTap: () => setState(() => _tab = 'desc')),
+                            _TabBtn(label: 'Thông số', active: _tab == 'specs', onTap: () => setState(() => _tab = 'specs')),
                             _TabBtn(label: 'Đánh giá (${p.reviews})', active: _tab == 'rev', onTap: () => setState(() => _tab = 'rev')),
                           ],
                         ),
-
                         const Divider(height: 1, color: AppColors.border),
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -206,7 +364,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
 
                   // Related products
-                  if (related.isNotEmpty) ...[
+                  if (_related.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Align(alignment: Alignment.centerLeft, child: Text('Sản phẩm liên quan', style: AppTextStyles.h3)),
@@ -216,13 +374,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: related.length,
+                        itemCount: _related.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
                         itemBuilder: (context, i) => ProductCard(
-                          product: related[i],
+                          product: _related[i],
                           variant: ProductCardVariant.horizontal,
                           onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(
-                            builder: (_) => ProductDetailScreen(productId: related[i].id),
+                            builder: (_) => ProductDetailScreen(productId: _related[i].id),
                           )),
                         ),
                       ),
@@ -248,9 +406,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Container(
                     width: 44, height: 44,
                     decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(12)),
-                    child: Column(
+                    child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.primary),
                         Text('Chat', style: TextStyle(fontSize: 9, color: AppColors.secondary)),
                       ],
@@ -279,7 +437,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     disabled: p.stock == 0,
                     onPressed: () {
                       context.read<CartProvider>().add(p.id, qty: _qty);
-                      Navigator.pop(context);
+                      Navigator.pushNamedAndRemoveUntil(context, '/main-cart', (r) => r.isFirst);
                     },
                   ),
                 ),
@@ -290,6 +448,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
   }
+}
+
+// ── Helper Widgets ────────────────────────────────────────────────────────────
+
+class _AnimatedShimmer extends StatelessWidget {
+  final Widget child;
+  const _AnimatedShimmer({required this.child});
+
+  @override
+  Widget build(BuildContext context) => child; // Simple placeholder
 }
 
 class _Card extends StatelessWidget {
@@ -403,7 +571,17 @@ class _TabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (tab == 'desc') {
+      final desc = product.description;
+      return Text(desc, style: const TextStyle(fontSize: 14, color: AppColors.secondary, height: 1.6));
+    }
     if (tab == 'specs') {
+      if (product.specs.isEmpty) {
+        return const Text(
+          'Thông số kỹ thuật chi tiết sẽ được cập nhật sớm.',
+          style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+        );
+      }
       return Column(
         children: product.specs.entries.map((e) => Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -417,9 +595,6 @@ class _TabContent extends StatelessWidget {
           ),
         )).toList(),
       );
-    }
-    if (tab == 'desc') {
-      return Text(product.description, style: const TextStyle(fontSize: 14, color: AppColors.secondary, height: 1.6));
     }
     // Reviews tab
     return Column(
