@@ -15,6 +15,14 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   String _tab = 'all';
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().fetchNotifications();
+    });
+  }
+
   IconData _iconOf(NotifType type) {
     switch (type) {
       case NotifType.promo: return Icons.card_giftcard;
@@ -47,6 +55,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final provider = context.watch<NotificationProvider>();
     final list = _tab == 'all' ? provider.items : provider.unread;
     final unreadCount = provider.unread.length;
+    final isLoading = provider.isLoading;
 
     return Column(
       children: [
@@ -84,62 +93,74 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
 
         Expanded(
-          child: list.isEmpty
-              ? const EmptyState(
-                  icon: Icons.notifications_off_outlined,
-                  title: 'Chưa có thông báo',
-                  body: 'Bạn sẽ nhận được thông báo về đơn hàng và khuyến mãi tại đây.',
-                )
-              : ListView.separated(
-                  itemCount: list.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
-                  itemBuilder: (context, i) {
-                    final n = list[i];
-                    return GestureDetector(
-                      onTap: () => context.read<NotificationProvider>().markRead(n.id),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        color: n.unread ? AppColors.primary.withOpacity(0.05) : AppColors.background,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 40, height: 40,
-                              decoration: BoxDecoration(
-                                color: _bgOf(n.type),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(_iconOf(n.type), size: 20, color: _colorOf(n.type)),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(n.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary), overflow: TextOverflow.ellipsis),
-                                      ),
-                                      if (n.unread)
-                                        Container(
-                                          width: 8, height: 8,
-                                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 4),
-                                  Text(n.time, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                                ],
-                              ),
+          child: isLoading && provider.items.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: () => provider.fetchNotifications(),
+                  child: list.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 100),
+                            EmptyState(
+                              icon: Icons.notifications_off_outlined,
+                              title: 'Chưa có thông báo',
+                              body: 'Bạn sẽ nhận được thông báo về đơn hàng và khuyến mãi tại đây.',
                             ),
                           ],
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: list.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                          itemBuilder: (context, i) {
+                            final n = list[i];
+                            return GestureDetector(
+                              onTap: () => context.read<NotificationProvider>().markRead(n.id),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                color: n.unread ? AppColors.primary.withOpacity(0.05) : AppColors.background,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        color: _bgOf(n.type),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(_iconOf(n.type), size: 20, color: _colorOf(n.type)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(n.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary), overflow: TextOverflow.ellipsis),
+                                              ),
+                                              if (n.unread)
+                                                Container(
+                                                  width: 8, height: 8,
+                                                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 4),
+                                          Text(n.time, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    );
-                  },
                 ),
         ),
       ],
