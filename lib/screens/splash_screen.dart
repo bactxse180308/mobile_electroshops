@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -22,8 +24,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
     _controller.forward();
 
-    Timer(const Duration(milliseconds: 1800), () {
-      if (mounted) Navigator.pushReplacementNamed(context, '/onboarding');
+    Timer(const Duration(milliseconds: 1800), () async {
+      if (!mounted) return;
+      final isLoggedIn = await context.read<AuthProvider>().tryAutoLogin();
+      if (mounted) {
+        if (isLoggedIn) {
+          Navigator.pushReplacementNamed(context, '/main');
+        } else {
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        }
+      }
     });
   }
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'order_detail_screen.dart';
 import 'stores_screen.dart';
@@ -8,6 +10,21 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final name = authProvider.fullName ?? 'Khách';
+    final email = authProvider.email ?? 'Chưa đăng nhập';
+    
+    // Generate initials from name
+    String initials = 'K';
+    if (name.trim().isNotEmpty) {
+      final parts = name.trim().split(' ');
+      if (parts.length >= 2) {
+        initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      } else if (parts.isNotEmpty) {
+        initials = parts[0][0].toUpperCase();
+      }
+    }
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -34,7 +51,12 @@ class ProfileScreen extends StatelessWidget {
                             color: Colors.white.withOpacity(0.2),
                             border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
                           ),
-                          child: const Center(child: Text('MT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 22))),
+                          child: Center(
+                            child: Text(
+                              initials, 
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 22),
+                            ),
+                          ),
                         ),
                         Positioned(
                           bottom: 0, right: 0,
@@ -51,8 +73,8 @@ class ProfileScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Minh Tuấn', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-                          const Text('minh.tuan@email.com', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          Text(name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                          Text(email, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -132,7 +154,12 @@ class ProfileScreen extends StatelessWidget {
                   label: 'Đăng xuất',
                   iconColor: AppColors.destructive,
                   labelColor: AppColors.destructive,
-                  onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+                  onTap: () async {
+                    await context.read<AuthProvider>().logout();
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    }
+                  },
                 ),
               ],
             ),
