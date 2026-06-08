@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/otp_verification_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/product_detail_screen.dart';
@@ -25,6 +27,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
@@ -49,6 +52,7 @@ class ElectroShopApp extends StatelessWidget {
         '/onboarding': (_) => const OnboardingScreen(),
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
+        '/verify-otp': (_) => const OtpVerificationScreen(),
         '/forgot-password': (_) => const ForgotPasswordScreen(),
         '/main': (_) => const MainScreen(),
         '/order-success': (_) => const OrderSuccessScreen(),

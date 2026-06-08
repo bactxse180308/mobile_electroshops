@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "423730883952",
+    "project_id": "electroshop-b130b",
+    "storage_bucket": "electroshop-b130b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:423730883952:android:8897cde4b26116226833b5",
+        "android_client_info": {
+          "package_name": "com.tranbac.electroshop.mobile_electroshops"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "423730883952-s898m5m1go41jkdntr32ot6kan6qp51d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tranbac.electroshop.mobile_electroshops",
+            "certificate_hash": "829470dc80b99670b021c097255dae22bc10b45b"
+          }
+        },
+        {
+          "client_id": "423730883952-cpvcfssi2bvtao5u8kp6680p5dshmlpm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBX7S0GAks3VsEm_LZGPuVXNdsoikf013g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "423730883952-cpvcfssi2bvtao5u8kp6680p5dshmlpm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
