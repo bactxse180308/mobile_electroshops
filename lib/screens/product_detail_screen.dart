@@ -26,6 +26,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ── Data state ─────────────────────────────────────────────────────────────
   Product? _product;
   List<Product> _related = [];
+  List<ApiProductAttributeResponse> _attributes = [];
+  ApiPage<ApiReviewResponse>? _reviewsPage;
+  ApiRatingStatsResponse? _ratingStats;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -62,10 +65,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             .toList();
       }
 
+      // Lấy attributes, reviews
+      final attrs = await api.getProductAttributes(id);
+      final stats = await api.getProductRatingStats(id);
+      final revs = await api.getProductReviews(id, size: 10);
+
       if (!mounted) return;
       setState(() {
         _product = product;
         _related = related;
+        _attributes = attrs;
+        _ratingStats = stats;
+        _reviewsPage = revs;
         _isLoading = false;
         _imgIndex = 0;
       });
@@ -357,7 +368,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         const Divider(height: 1, color: AppColors.border),
                         Padding(
                           padding: const EdgeInsets.all(16),
-                          child: _TabContent(tab: _tab, product: p),
+                          child: _TabContent(
+                            tab: _tab,
+                            product: p,
+                            attributes: _attributes,
+                            ratingStats: _ratingStats,
+                            reviews: _reviewsPage?.content ?? [],
+                          ),
                         ),
                       ],
                     ),
@@ -567,7 +584,17 @@ class _TabBtn extends StatelessWidget {
 class _TabContent extends StatelessWidget {
   final String tab;
   final Product product;
-  const _TabContent({required this.tab, required this.product});
+  final List<ApiProductAttributeResponse> attributes;
+  final ApiRatingStatsResponse? ratingStats;
+  final List<ApiReviewResponse> reviews;
+
+  const _TabContent({
+    required this.tab,
+    required this.product,
+    required this.attributes,
+    required this.ratingStats,
+    required this.reviews,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -576,27 +603,31 @@ class _TabContent extends StatelessWidget {
       return Text(desc, style: const TextStyle(fontSize: 14, color: AppColors.secondary, height: 1.6));
     }
     if (tab == 'specs') {
-      if (product.specs.isEmpty) {
+      if (attributes.isEmpty) {
         return const Text(
           'Thông số kỹ thuật chi tiết sẽ được cập nhật sớm.',
           style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
         );
       }
       return Column(
-        children: product.specs.entries.map((e) => Container(
+        children: attributes.map((e) => Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border))),
           child: Row(
             children: [
-              SizedBox(width: 110, child: Text(e.key, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground))),
+              SizedBox(width: 110, child: Text(e.attributeName, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground))),
               const SizedBox(width: 12),
-              Expanded(child: Text(e.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondary))),
+              Expanded(child: Text(e.attributeValue, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondary))),
             ],
           ),
         )).toList(),
       );
     }
     // Reviews tab
+    final avgRating = ratingStats?.averageRating ?? product.rating;
+    final totalRevs = ratingStats?.totalReviews ?? product.reviews;
+    final rc = ratingStats?.ratingCount ?? {};
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -604,72 +635,100 @@ class _TabContent extends StatelessWidget {
           children: [
             Column(
               children: [
-                Text(product.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.secondary)),
-                Row(children: List.generate(5, (i) => Icon(Icons.star, size: 12, color: i < product.rating.round() ? AppColors.accent : AppColors.border))),
+                Text(avgRating.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.secondary)),
+                Row(children: List.generate(5, (i) => Icon(Icons.star, size: 12, color: i < avgRating.round() ? AppColors.accent : AppColors.border))),
                 const SizedBox(height: 4),
-                Text('${product.reviews} đánh giá', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                Text('$totalRevs đánh giá', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
               ],
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                children: [5, 4, 3, 2, 1].map((s) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Text('$s', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: s == 5 ? 0.7 : s == 4 ? 0.2 : s == 3 ? 0.07 : 0.02,
-                            backgroundColor: AppColors.muted,
-                            valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                            minHeight: 6,
+                children: [5, 4, 3, 2, 1].map((s) {
+                  final count = rc[s.toString()] ?? 0;
+                  final pct = totalRevs > 0 ? count / totalRevs : 0.0;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Text('$s', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: pct,
+                              backgroundColor: AppColors.muted,
+                              valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                              minHeight: 6,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                )).toList(),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        ...[
-          ('Minh Tuấn', 'Hàng chính hãng, đóng gói cẩn thận. Chạy mượt hơn hẳn RAM cũ.', 5),
-          ('Quang Anh', 'Shop tư vấn nhiệt tình, giao nhanh trong ngày.', 5),
-          ('Phương Linh', 'Sản phẩm tốt, giá hợp lý. Sẽ ủng hộ shop tiếp.', 4),
-        ].map((r) => Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Divider(color: AppColors.border),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                    child: Text(r.$1[0], style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
+        if (reviews.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: Text('Chưa có đánh giá nào cho sản phẩm này.', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+          )
+        else
+          ...reviews.map((r) => Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(color: AppColors.border),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(r.userName.isNotEmpty ? r.userName[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: Text(r.userName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              if (r.reviewDate != null)
+                                Text(r.reviewDate!.split('T')[0], style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                            ],
+                          ),
+                          Row(children: List.generate(5, (i) => Icon(Icons.star, size: 11, color: i < r.rating ? AppColors.accent : AppColors.border))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(r.comment, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                if (r.reply != null && r.reply!.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.support_agent, size: 14, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(r.reply!, style: const TextStyle(fontSize: 12, color: AppColors.secondary))),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(r.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.secondary)),
-                      Row(children: List.generate(5, (i) => Icon(Icons.star, size: 11, color: i < r.$3 ? AppColors.accent : AppColors.border))),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(r.$2, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
-            ],
-          ),
-        )),
+              ],
+            ),
+          )),
       ],
     );
   }

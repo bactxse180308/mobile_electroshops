@@ -133,6 +133,33 @@ class ApiService {
     final page = ApiPage.fromJson(data, ApiBrandResponse.fromJson);
     return page.content;
   }
+
+  // ── Attributes & Reviews ─────────────────────────────────────────────────
+
+  /// Lấy danh sách thuộc tính của sản phẩm
+  Future<List<ApiProductAttributeResponse>> getProductAttributes(int productId) async {
+    final json = await _get('/product-attributes/product/$productId');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data.map((e) => ApiProductAttributeResponse.fromJson(e)).toList();
+  }
+
+  /// Lấy danh sách đánh giá của sản phẩm
+  Future<ApiPage<ApiReviewResponse>> getProductReviews(int productId, {int page = 0, int size = 20}) async {
+    final json = await _get('/reviews', params: {
+      'productId': productId.toString(),
+      'page': page.toString(),
+      'size': size.toString(),
+    });
+    final data = json['data'] as Map<String, dynamic>;
+    return ApiPage.fromJson(data, ApiReviewResponse.fromJson);
+  }
+
+  /// Lấy thống kê đánh giá của sản phẩm
+  Future<ApiRatingStatsResponse> getProductRatingStats(int productId) async {
+    final json = await _get('/reviews/product/$productId/rating-stats');
+    final data = json['data'] as Map<String, dynamic>;
+    return ApiRatingStatsResponse.fromJson(data);
+  }
 }
 
 // ── Exception ────────────────────────────────────────────────────────────────

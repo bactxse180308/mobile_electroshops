@@ -45,6 +45,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   // ── Data state ────────────────────────────────────────────────────────────
   List<Brand> _brands = [];            // dùng để hiển thị filter brands
   List<ApiBrandResponse> _apiBrands = []; // giữ nguyên để map id
+  List<ApiCategoryResponse> _apiCategories = []; // Thêm để map category
   List<Product> _products = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -73,7 +74,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     _selectedBrandId = widget.initialBrandId;
 
     _scrollCtrl.addListener(_onScroll);
-    _loadBrands();
+    _loadBrandsAndCategories();
     _loadProducts(reset: true);
   }
 
@@ -103,17 +104,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  // ── Load brands for filter ────────────────────────────────────────────────
-  Future<void> _loadBrands() async {
+  // ── Load brands and categories for filter ─────────────────────────────────
+  Future<void> _loadBrandsAndCategories() async {
     try {
-      final apiBrands = await ApiService().getBrands();
+      final api = ApiService();
+      final apiBrands = await api.getBrands();
+      final apiCats = await api.getCategories();
       if (!mounted) return;
       setState(() {
         _apiBrands = apiBrands;
         _brands = apiBrands.map((b) => Brand.fromApi(b)).toList();
+        _apiCategories = apiCats;
       });
     } catch (_) {
-      // Brand load fail không critical, bỏ qua
+      // Load fail không critical, bỏ qua
     }
   }
 
@@ -144,10 +148,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
       final newProducts = page.content.map((e) => Product.fromApi(e)).toList();
 
-      // Client-side: filter rating (BE không có param này)
-      final filtered = _minRating > 0
-          ? newProducts.where((p) => p.rating >= _minRating).toList()
-          : newProducts;
+      // Client-side: filter rating and price (BE không có param này)
+      final filtered = newProducts.where((p) {
+        if (_minRating > 0 && p.rating < _minRating) return false;
+        if (_pickedPrice != null) {
+          final band = _priceBands.firstWhere((b) => b['id'] == _pickedPrice);
+          if (p.price < (band['min'] as int) || p.price > (band['max'] as int)) return false;
+        }
+        return true;
+      }).toList();
 
       setState(() {
         _products = filtered;
@@ -182,9 +191,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       if (!mounted) return;
 
       final newProducts = page.content.map((e) => Product.fromApi(e)).toList();
-      final filtered = _minRating > 0
-          ? newProducts.where((p) => p.rating >= _minRating).toList()
-          : newProducts;
+      final filtered = newProducts.where((p) {
+        if (_minRating > 0 && p.rating < _minRating) return false;
+        if (_pickedPrice != null) {
+          final band = _priceBands.firstWhere((b) => b['id'] == _pickedPrice);
+          if (p.price < (band['min'] as int) || p.price > (band['max'] as int)) return false;
+        }
+        return true;
+      }).toList();
 
       setState(() {
         _currentPage++;
@@ -208,6 +222,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   // ── Active filter count ───────────────────────────────────────────────────
   int get _activeFilters =>
+      (_selectedCategoryId != null ? 1 : 0) +
       (_selectedBrandId != null ? 1 : 0) +
       (_pickedPrice != null ? 1 : 0) +
       (_minRating > 0 ? 1 : 0);
@@ -384,13 +399,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           if (_showFilter)
             _FilterSheet(
               apiBrands: _apiBrands,
+              apiCategories: _apiCategories,
+              selectedCategoryId: _selectedCategoryId,
               selectedBrandId: _selectedBrandId,
               pickedPrice: _pickedPrice,
               minRating: _minRating,
               priceBands: _priceBands,
               resultCount: _totalCount,
-              onApply: (brandId, price, rating) {
+              onApply: (catId, brandId, price, rating) {
                 setState(() {
+                  _selectedCategoryId = catId;
                   _selectedBrandId = brandId;
                   _pickedPrice = price;
                   _minRating = rating;
@@ -503,16 +521,20 @@ class _GridShimmerState extends State<_GridShimmer> with SingleTickerProviderSta
 // ── Filter bottom sheet ───────────────────────────────────────────────────────
 class _FilterSheet extends StatefulWidget {
   final List<ApiBrandResponse> apiBrands;
+  final List<ApiCategoryResponse> apiCategories;
+  final int? selectedCategoryId;
   final int? selectedBrandId;
   final String? pickedPrice;
   final double minRating;
   final List<Map<String, dynamic>> priceBands;
   final int resultCount;
-  final Function(int? brandId, String? price, double rating) onApply;
+  final Function(int? catId, int? brandId, String? price, double rating) onApply;
   final VoidCallback onClose;
 
   const _FilterSheet({
     required this.apiBrands,
+    required this.apiCategories,
+    required this.selectedCategoryId,
     required this.selectedBrandId,
     required this.pickedPrice,
     required this.minRating,
@@ -527,6 +549,7 @@ class _FilterSheet extends StatefulWidget {
 }
 
 class _FilterSheetState extends State<_FilterSheet> {
+  int? _catId;
   int? _brandId;
   String? _price;
   double _rating = 0;
@@ -534,6 +557,7 @@ class _FilterSheetState extends State<_FilterSheet> {
   @override
   void initState() {
     super.initState();
+    _catId = widget.selectedCategoryId;
     _brandId = widget.selectedBrandId;
     _price = widget.pickedPrice;
     _rating = widget.minRating;
@@ -602,6 +626,31 @@ class _FilterSheetState extends State<_FilterSheet> {
                                 );
                               }).toList(),
                             ),
+                            // Categories
+                            if (widget.apiCategories.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              const Text('Danh mục', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: widget.apiCategories.map((c) {
+                                  final active = _catId == c.categoryId;
+                                  return GestureDetector(
+                                    onTap: () => setState(() => _catId = active ? null : c.categoryId),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: active ? AppColors.primary : AppColors.border),
+                                        color: active ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(c.categoryName, style: TextStyle(fontSize: 12, color: active ? AppColors.primary : AppColors.secondary)),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                             // Brands
                             if (widget.apiBrands.isNotEmpty) ...[
                               const SizedBox(height: 16),
@@ -663,7 +712,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                             child: AppButton(
                               label: 'Xoá bộ lọc',
                               variant: AppButtonVariant.secondary,
-                              onPressed: () => setState(() { _brandId = null; _price = null; _rating = 0; }),
+                              onPressed: () => setState(() { _catId = null; _brandId = null; _price = null; _rating = 0; }),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -671,7 +720,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                             child: AppButton(
                               label: 'Áp dụng',
                               variant: AppButtonVariant.gradient,
-                              onPressed: () => widget.onApply(_brandId, _price, _rating),
+                              onPressed: () => widget.onApply(_catId, _brandId, _price, _rating),
                             ),
                           ),
                         ],

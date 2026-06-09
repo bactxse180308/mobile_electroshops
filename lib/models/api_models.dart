@@ -214,3 +214,87 @@ class ApiBrandResponse {
     );
   }
 }
+
+// ─────────────────────────────────────────────
+// AttributeResponse & ReviewResponse từ BE
+// ─────────────────────────────────────────────
+class ApiProductAttributeResponse {
+  final int attributeId;
+  final String attributeName;
+  final String attributeValue;
+
+  const ApiProductAttributeResponse({
+    required this.attributeId,
+    required this.attributeName,
+    required this.attributeValue,
+  });
+
+  factory ApiProductAttributeResponse.fromJson(Map<String, dynamic> json) {
+    return ApiProductAttributeResponse(
+      attributeId: json['attributeId'] as int? ?? 0,
+      attributeName: json['attributeName'] as String? ?? '',
+      attributeValue: json['attributeValue'] as String? ?? '',
+    );
+  }
+}
+
+class ApiReviewResponse {
+  final int reviewId;
+  final int productId;
+  final int userId;
+  final String userName;
+  final int rating;
+  final String comment;
+  final String? reviewDate;
+  final String? reply;
+
+  const ApiReviewResponse({
+    required this.reviewId,
+    required this.productId,
+    required this.userId,
+    required this.userName,
+    required this.rating,
+    required this.comment,
+    this.reviewDate,
+    this.reply,
+  });
+
+  factory ApiReviewResponse.fromJson(Map<String, dynamic> json) {
+    return ApiReviewResponse(
+      reviewId: json['reviewId'] as int? ?? 0,
+      productId: json['productId'] as int? ?? 0,
+      userId: json['userId'] as int? ?? 0,
+      userName: json['userName'] as String? ?? 'Khách',
+      rating: json['rating'] as int? ?? 5,
+      comment: json['comment'] as String? ?? '',
+      reviewDate: json['reviewDate'] as String?,
+      reply: json['reply'] as String?,
+    );
+  }
+}
+
+class ApiRatingStatsResponse {
+  final double averageRating;
+  final int totalReviews;
+  final Map<String, int> ratingCount;
+
+  const ApiRatingStatsResponse({
+    required this.averageRating,
+    required this.totalReviews,
+    required this.ratingCount,
+  });
+
+  factory ApiRatingStatsResponse.fromJson(Map<String, dynamic> json) {
+    final Map<String, int> rc = {};
+    if (json['ratingCount'] != null) {
+      (json['ratingCount'] as Map<String, dynamic>).forEach((k, v) {
+        rc[k] = v as int;
+      });
+    }
+    return ApiRatingStatsResponse(
+      averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
+      totalReviews: json['totalReviews'] as int? ?? 0,
+      ratingCount: rc,
+    );
+  }
+}
