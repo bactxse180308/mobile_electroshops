@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_html/flutter_html.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../models/api_models.dart';
 import '../services/api_service.dart';
 import '../providers/cart_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/format_utils.dart';
 import '../widgets/product_card.dart';
 import '../widgets/app_button.dart';
@@ -86,6 +89,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _errorMessage = e is ApiException ? e.message : e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  // ── Add to cart qua API ────────────────────────────────────────────────────
+  Future<void> _addToCart(Product p, {required bool goToCart}) async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated || auth.userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Vui lòng đăng nhập để thêm vào giỏ hàng'),
+          action: SnackBarAction(
+            label: 'Đăng nhập',
+            onPressed: () => Navigator.pushNamed(context, '/login'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await context.read<CartProvider>().addItem(
+        auth.userId!,
+        int.parse(p.id),
+        _qty,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã thêm vào giỏ hàng ✓'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      if (goToCart) {
+        Navigator.pushNamedAndRemoveUntil(context, '/main-cart', (r) => r.isFirst);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể thêm vào giỏ: ${e.toString().replaceAll("ApiException(", "").replaceAll(")", "")}'),
+          backgroundColor: AppColors.destructive,
+        ),
+      );
     }
   }
 
@@ -438,12 +485,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     label: 'Vào giỏ',
                     variant: AppButtonVariant.secondary,
                     disabled: p.stock == 0,
-                    onPressed: () {
-                      context.read<CartProvider>().add(p.id, qty: _qty);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã thêm vào giỏ hàng'), backgroundColor: AppColors.success, duration: Duration(seconds: 2)),
-                      );
-                    },
+                    onPressed: () => _addToCart(p, goToCart: false),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -452,10 +494,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     label: 'Mua ngay',
                     variant: AppButtonVariant.gradient,
                     disabled: p.stock == 0,
-                    onPressed: () {
-                      context.read<CartProvider>().add(p.id, qty: _qty);
-                      Navigator.pushNamedAndRemoveUntil(context, '/main-cart', (r) => r.isFirst);
-                    },
+                    onPressed: () => _addToCart(p, goToCart: true),
                   ),
                 ),
               ],
@@ -600,7 +639,18 @@ class _TabContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tab == 'desc') {
       final desc = product.description;
-      return Text(desc, style: const TextStyle(fontSize: 14, color: AppColors.secondary, height: 1.6));
+      return Html(
+        data: desc,
+        style: {
+          "body": Style(
+            fontSize: FontSize(14.0),
+            color: AppColors.secondary,
+            lineHeight: LineHeight(1.6),
+            padding: HtmlPaddings.zero,
+            margin: Margins.zero,
+          ),
+        },
+      );
     }
     if (tab == 'specs') {
       if (attributes.isEmpty) {

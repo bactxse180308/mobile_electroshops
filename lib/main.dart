@@ -27,10 +27,16 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProxyProvider<CartProvider, AuthProvider>(
+          create: (_) => AuthProvider(),
+          update: (_, cartProvider, authProvider) {
+            authProvider!.setCartProvider(cartProvider);
+            return authProvider;
+          },
+        ),
       ],
       child: const ElectroShopApp(),
     ),

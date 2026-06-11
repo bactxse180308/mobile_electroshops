@@ -43,7 +43,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   double _minRating = 0;
 
   // ── Data state ────────────────────────────────────────────────────────────
-  List<Brand> _brands = [];            // dùng để hiển thị filter brands
   List<ApiBrandResponse> _apiBrands = []; // giữ nguyên để map id
   List<ApiCategoryResponse> _apiCategories = []; // Thêm để map category
   List<Product> _products = [];
@@ -113,7 +112,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       if (!mounted) return;
       setState(() {
         _apiBrands = apiBrands;
-        _brands = apiBrands.map((b) => Brand.fromApi(b)).toList();
         _apiCategories = apiCats;
       });
     } catch (_) {
@@ -315,7 +313,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   child: Row(
                     children: [
                       Text(
-                        _isLoading ? 'Đang tải…' : '$_totalCount sản phẩm',
+                        _isLoading ? 'Đang tải…' : '',
                         style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
                       ),
                       const Spacer(),

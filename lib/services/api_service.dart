@@ -2,13 +2,21 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/api_models.dart';
 
 /// Service trung tâm để giao tiếp với Spring Boot backend.
 class ApiService {
-  // Đổi dòng bên dưới tuỳ theo môi trường test:
-  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';    // ← Android Emulator
-  //static const String baseUrl = 'http://192.168.1.236:8080/api/v1';  // ← Device thật / Docker
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:8080/api/v1';
+    try {
+      return Platform.isAndroid
+          ? 'http://10.0.2.2:8080/api/v1'
+          : 'http://localhost:8080/api/v1';
+    } catch (_) {
+      return 'http://localhost:8080/api/v1';
+    }
+  }
 
   static const Duration _timeout = Duration(seconds: 15);
 
@@ -16,49 +24,117 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // ── HTTP Helper ──────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> _get(
-    String path, {
-    Map<String, String?>? params,
-  }) async {
-    final cleanParams = <String, String>{};
-    params?.forEach((k, v) {
-      if (v != null) cleanParams[k] = v;
-    });
+  // ── Token helper ─────────────────────────────────────────────────────────
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('access_token');
+  }
 
+  Map<String, String> _baseHeaders({String? token}) {
+    final h = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (token != null && token.isNotEmpty) {
+      h['Authorization'] = 'Bearer $token';
+    }
+    return h;
+  }
+
+  // ── HTTP Helpers ──────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> _get(String path, {Map<String, String?>? params}) async {
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
     final uri = Uri.parse('$baseUrl$path').replace(
       queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
-
     debugPrint('[API] GET $uri');
+    return _send(http.get(uri, headers: _baseHeaders()), path);
+  }
 
+  Future<Map<String, dynamic>> _authGet(String path, {Map<String, String?>? params}) async {
+    final token = await _getToken();
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
+    );
+    debugPrint('[API] GET(auth) $uri');
+    return _send(http.get(uri, headers: _baseHeaders(token: token)), path);
+  }
+
+  Future<Map<String, dynamic>> _authPost(String path, Map<String, dynamic> body) async {
+    final token = await _getToken();
+    final uri = Uri.parse('$baseUrl$path');
+    debugPrint('[API] POST(auth) $uri');
+    return _send(
+      http.post(uri, headers: _baseHeaders(token: token), body: json.encode(body)),
+      path,
+    );
+  }
+
+  Future<Map<String, dynamic>> _authPatch(String path, {Map<String, String?>? params}) async {
+    final token = await _getToken();
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
+    );
+    debugPrint('[API] PATCH(auth) $uri');
+    return _send(http.patch(uri, headers: _baseHeaders(token: token)), path);
+  }
+
+  Future<void> _authDelete(String path, {Map<String, String?>? params}) async {
+    final token = await _getToken();
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
+    );
+    debugPrint('[API] DELETE(auth) $uri');
     try {
-      final response = await http.get(uri, headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      }).timeout(_timeout);
-
+      final response = await http
+          .delete(uri, headers: _baseHeaders(token: token))
+          .timeout(_timeout);
       debugPrint('[API] ${response.statusCode} ← $path');
+      if (response.statusCode >= 200 && response.statusCode < 300) return;
+      final body = utf8.decode(response.bodyBytes);
+      debugPrint('[API] Error body: $body');
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'HTTP ${response.statusCode}',
+      );
+    } on SocketException catch (e) {
+      throw ApiException(statusCode: 0, message: 'Không thể kết nối server: $e');
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(statusCode: 0, message: e.toString());
+    }
+  }
 
+  Future<Map<String, dynamic>> _send(Future<http.Response> req, String path) async {
+    try {
+      final response = await req.timeout(_timeout);
+      debugPrint('[API] ${response.statusCode} ← $path');
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final body = utf8.decode(response.bodyBytes);
         return json.decode(body) as Map<String, dynamic>;
-      } else {
-        final body = utf8.decode(response.bodyBytes);
-        debugPrint('[API] Error body: $body');
-        throw ApiException(
-          statusCode: response.statusCode,
-          message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-        );
       }
+      final body = utf8.decode(response.bodyBytes);
+      debugPrint('[API] Error body: $body');
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+      );
     } on SocketException catch (e) {
-      debugPrint('[API] SocketException: $e → URL: $uri');
+      debugPrint('[API] SocketException: $e → $path');
       throw ApiException(
         statusCode: 0,
-        message: 'Không thể kết nối đến server ($uri). Kiểm tra BE đang chạy và IP trong api_service.dart.',
+        message: 'Không thể kết nối server. Kiểm tra BE đang chạy.',
       );
     } on http.ClientException catch (e) {
-      debugPrint('[API] ClientException: $e');
       throw ApiException(statusCode: 0, message: e.message);
     } on ApiException {
       rethrow;
@@ -70,14 +146,6 @@ class ApiService {
 
   // ── Products ─────────────────────────────────────────────────────────────
 
-  /// Lấy danh sách sản phẩm với filter và phân trang.
-  ///
-  /// [keyword] — từ khoá tìm kiếm  
-  /// [categoryId] — lọc theo danh mục  
-  /// [brandId] — lọc theo thương hiệu  
-  /// [page] — trang hiện tại (0-based)  
-  /// [size] — số sản phẩm mỗi trang  
-  /// [sort] — ví dụ: "price,asc" | "price,desc" | "soldCount,desc" | "createdDate,desc"
   Future<ApiPage<ApiProductResponse>> getProducts({
     String? keyword,
     int? categoryId,
@@ -86,7 +154,7 @@ class ApiService {
     int size = 20,
     String? sort,
   }) async {
-    final json = await _get('/products', params: {
+    final j = await _get('/products', params: {
       if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
       if (categoryId != null) 'categoryId': categoryId.toString(),
       if (brandId != null) 'brandId': brandId.toString(),
@@ -94,71 +162,102 @@ class ApiService {
       'size': size.toString(),
       if (sort != null) 'sort': sort,
     });
-
-    final data = json['data'] as Map<String, dynamic>;
+    final data = j['data'] as Map<String, dynamic>;
     return ApiPage.fromJson(data, ApiProductResponse.fromJson);
   }
 
-  /// Lấy chi tiết một sản phẩm theo ID.
   Future<ApiProductResponse> getProductById(int id) async {
-    final json = await _get('/products/$id');
-    final data = json['data'] as Map<String, dynamic>;
-    return ApiProductResponse.fromJson(data);
+    final j = await _get('/products/$id');
+    return ApiProductResponse.fromJson(j['data'] as Map<String, dynamic>);
   }
 
   // ── Categories ───────────────────────────────────────────────────────────
 
-  /// Lấy toàn bộ danh mục (mặc định size=100, đủ cho mọi trường hợp).
   Future<List<ApiCategoryResponse>> getCategories({int size = 100}) async {
-    final json = await _get('/categories', params: {
-      'page': '0',
-      'size': size.toString(),
-    });
-
-    final data = json['data'] as Map<String, dynamic>;
-    final page = ApiPage.fromJson(data, ApiCategoryResponse.fromJson);
-    return page.content;
+    final j = await _get('/categories', params: {'page': '0', 'size': size.toString()});
+    final data = j['data'] as Map<String, dynamic>;
+    return ApiPage.fromJson(data, ApiCategoryResponse.fromJson).content;
   }
 
   // ── Brands ───────────────────────────────────────────────────────────────
 
-  /// Lấy toàn bộ thương hiệu.
   Future<List<ApiBrandResponse>> getBrands({int size = 100}) async {
-    final json = await _get('/brands', params: {
-      'page': '0',
-      'size': size.toString(),
-    });
-
-    final data = json['data'] as Map<String, dynamic>;
-    final page = ApiPage.fromJson(data, ApiBrandResponse.fromJson);
-    return page.content;
+    final j = await _get('/brands', params: {'page': '0', 'size': size.toString()});
+    final data = j['data'] as Map<String, dynamic>;
+    return ApiPage.fromJson(data, ApiBrandResponse.fromJson).content;
   }
 
   // ── Attributes & Reviews ─────────────────────────────────────────────────
 
-  /// Lấy danh sách thuộc tính của sản phẩm
   Future<List<ApiProductAttributeResponse>> getProductAttributes(int productId) async {
-    final json = await _get('/product-attributes/product/$productId');
-    final data = json['data'] as List<dynamic>? ?? [];
+    final j = await _get('/product-attributes/product/$productId');
+    final data = j['data'] as List<dynamic>? ?? [];
     return data.map((e) => ApiProductAttributeResponse.fromJson(e)).toList();
   }
 
-  /// Lấy danh sách đánh giá của sản phẩm
-  Future<ApiPage<ApiReviewResponse>> getProductReviews(int productId, {int page = 0, int size = 20}) async {
-    final json = await _get('/reviews', params: {
+  Future<ApiPage<ApiReviewResponse>> getProductReviews(
+    int productId, {
+    int page = 0,
+    int size = 20,
+  }) async {
+    final j = await _get('/reviews', params: {
       'productId': productId.toString(),
       'page': page.toString(),
       'size': size.toString(),
     });
-    final data = json['data'] as Map<String, dynamic>;
-    return ApiPage.fromJson(data, ApiReviewResponse.fromJson);
+    return ApiPage.fromJson(
+      j['data'] as Map<String, dynamic>,
+      ApiReviewResponse.fromJson,
+    );
   }
 
-  /// Lấy thống kê đánh giá của sản phẩm
   Future<ApiRatingStatsResponse> getProductRatingStats(int productId) async {
-    final json = await _get('/reviews/product/$productId/rating-stats');
-    final data = json['data'] as Map<String, dynamic>;
-    return ApiRatingStatsResponse.fromJson(data);
+    final j = await _get('/reviews/product/$productId/rating-stats');
+    return ApiRatingStatsResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  // ── Cart ─────────────────────────────────────────────────────────────────
+
+  /// Lấy giỏ hàng của user (yêu cầu đăng nhập)
+  Future<ApiCartResponse> getCart(int userId) async {
+    final j = await _authGet('/cart/$userId');
+    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  /// Thêm sản phẩm vào giỏ
+  Future<ApiCartResponse> addToCart(
+    int userId,
+    int productId,
+    int quantity,
+  ) async {
+    final j = await _authPost('/cart/$userId/items', {
+      'productId': productId,
+      'quantity': quantity,
+    });
+    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  /// Cập nhật số lượng sản phẩm trong giỏ
+  Future<ApiCartResponse> updateCartItem(
+    int userId,
+    int productId,
+    int quantity,
+  ) async {
+    final j = await _authPatch(
+      '/cart/$userId/items/$productId',
+      params: {'quantity': quantity.toString()},
+    );
+    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  /// Xoá sản phẩm khỏi giỏ
+  Future<void> removeCartItem(int userId, int productId) async {
+    await _authDelete('/cart/$userId/items/$productId');
+  }
+
+  /// Xoá toàn bộ giỏ hàng
+  Future<void> clearCart(int userId) async {
+    await _authDelete('/cart/$userId');
   }
 }
 
