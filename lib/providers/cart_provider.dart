@@ -201,4 +201,21 @@ class CartProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  void removeSelected() {
+    if (_cart == null || _selectedIds.isEmpty) return;
+    final remaining = _cart!.items
+        .where((item) => !_selectedIds.contains(item.productId))
+        .toList();
+    _cart = ApiCartResponse(
+      cartId: _cart!.cartId,
+      userId: _cart!.userId,
+      items: remaining,
+      totalAmount: remaining.fold(0.0, (sum, item) => sum + item.subtotal),
+      totalItems: remaining.fold(0, (sum, item) => sum + item.quantity),
+    );
+    _selectedIds.clear();
+    notifyListeners();
+  }
 }
+

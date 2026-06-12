@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Models ánh xạ chính xác JSON response từ Spring Boot backend.
 /// ApiResponse<T> wrapper: { "status": int, "message": str, "data": T }
 /// Paginated: data có dạng { "content": [...], "totalElements": int, "last": bool, ... }
@@ -285,16 +287,21 @@ class ApiRatingStatsResponse {
   });
 
   factory ApiRatingStatsResponse.fromJson(Map<String, dynamic> json) {
-    final Map<String, int> rc = {};
-    if (json['ratingCount'] != null) {
-      (json['ratingCount'] as Map<String, dynamic>).forEach((k, v) {
-        rc[k] = v as int;
+    final ratingCount = <String, int>{};
+    final raw = json['ratingCount'];
+    if (raw is Map<String, dynamic>) {
+      raw.forEach((key, value) {
+        if (value is int) {
+          ratingCount[key] = value;
+        } else if (value is num) {
+          ratingCount[key] = value.toInt();
+        }
       });
     }
     return ApiRatingStatsResponse(
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: json['totalReviews'] as int? ?? 0,
-      ratingCount: rc,
+      ratingCount: ratingCount,
     );
   }
 }
@@ -372,3 +379,334 @@ class ApiCartResponse {
   }
 }
 
+// ─────────────────────────────────────────────
+// Order request / response
+// ─────────────────────────────────────────────
+class OrderItemRequest {
+  final int productId;
+  final int quantity;
+
+  const OrderItemRequest({required this.productId, required this.quantity});
+
+  Map<String, dynamic> toJson() => {
+        'productId': productId,
+        'quantity': quantity,
+      };
+}
+
+class CreateOrderRequest {
+  final String recipientName;
+  final String recipientPhone;
+  final String shippingAddress;
+  final String? note;
+  final String paymentMethod;
+  final String? voucherCode;
+  final List<OrderItemRequest> items;
+
+  const CreateOrderRequest({
+    required this.recipientName,
+    required this.recipientPhone,
+    required this.shippingAddress,
+    this.note,
+    required this.paymentMethod,
+    this.voucherCode,
+    required this.items,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'recipientName': recipientName,
+        'recipientPhone': recipientPhone,
+        'shippingAddress': shippingAddress,
+        if (note != null && note!.isNotEmpty) 'note': note,
+        'paymentMethod': paymentMethod,
+        if (voucherCode != null && voucherCode!.isNotEmpty) 'voucherCode': voucherCode,
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class OrderItemResponse {
+  final int productId;
+  final String productName;
+  final String? productImage;
+  final int quantity;
+  final double unitPrice;
+
+  const OrderItemResponse({
+    required this.productId,
+    required this.productName,
+    this.productImage,
+    required this.quantity,
+    required this.unitPrice,
+  });
+
+  factory OrderItemResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    return OrderItemResponse(
+      productId: json['productId'] as int? ?? 0,
+      productName: json['productName'] as String? ?? '',
+      productImage: (json['productImage'] as String?) ?? (json['mainImage'] as String?),
+      quantity: json['quantity'] as int? ?? 0,
+      unitPrice: parseNum(json['unitPrice'] ?? json['price']),
+    );
+  }
+
+  String? get mainImage => productImage;
+  double get price => unitPrice;
+  double get subtotal => unitPrice * quantity;
+}
+
+class OrderResponse {
+  final int orderId;
+  final String orderCode;
+  final String orderStatus;
+  final double totalAmount;
+  final double shippingFee;
+  final double discountAmount;
+  final double finalAmount;
+  final String recipientName;
+  final String recipientPhone;
+  final String shippingAddress;
+  final String paymentMethod;
+  final String paymentStatus;
+  final String? note;
+  final String? orderDate;
+  final List<OrderItemResponse> orderItems;
+
+  const OrderResponse({
+    required this.orderId,
+    required this.orderCode,
+    required this.orderStatus,
+    required this.totalAmount,
+    required this.shippingFee,
+    required this.discountAmount,
+    required this.finalAmount,
+    required this.recipientName,
+    required this.recipientPhone,
+    required this.shippingAddress,
+    required this.paymentMethod,
+    required this.paymentStatus,
+    this.note,
+    this.orderDate,
+    required this.orderItems,
+  });
+
+  factory OrderResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    final rawItems = (json['orderItems'] ?? json['items']) as List<dynamic>? ?? [];
+    return OrderResponse(
+      orderId: json['orderId'] as int? ?? 0,
+      orderCode: json['orderCode'] as String? ?? '',
+      orderStatus: (json['orderStatus'] as String?) ?? (json['status'] as String?) ?? '',
+      totalAmount: parseNum(json['totalAmount']),
+      shippingFee: parseNum(json['shippingFee']),
+      discountAmount: parseNum(json['discountAmount']),
+      finalAmount: parseNum(json['finalAmount']),
+      recipientName: json['recipientName'] as String? ?? '',
+      recipientPhone: json['recipientPhone'] as String? ?? '',
+      shippingAddress: json['shippingAddress'] as String? ?? '',
+      paymentMethod: json['paymentMethod'] as String? ?? '',
+      paymentStatus: json['paymentStatus'] as String? ?? '',
+      note: json['note'] as String?,
+      orderDate: (json['orderDate'] as String?) ?? (json['createdDate'] as String?),
+      orderItems: rawItems
+          .map((e) => OrderItemResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  String get status => orderStatus;
+  String? get createdDate => orderDate;
+  List<OrderItemResponse> get items => orderItems;
+
+  String get statusLabel => orderStatusLabel(orderStatus);
+
+  String get paymentMethodLabel => orderPaymentLabel(paymentMethod);
+}
+
+String orderStatusLabel(String status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING':
+    case 'WAITING_CONFIRM':
+    case 'WAITING_CONFIRMATION':
+      return 'Chờ xác nhận';
+    case 'CONFIRMED':
+      return 'Đã xác nhận';
+    case 'SHIPPING':
+    case 'DELIVERING':
+      return 'Đang giao';
+    case 'COMPLETED':
+    case 'DELIVERED':
+      return 'Hoàn tất';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'Đã hủy';
+    default:
+      return status;
+  }
+}
+
+Color orderStatusColor(String status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING':
+    case 'WAITING_CONFIRM':
+    case 'WAITING_CONFIRMATION':
+      return const Color(0xFFF59E0B);
+    case 'CONFIRMED':
+      return const Color(0xFF2563EB);
+    case 'SHIPPING':
+    case 'DELIVERING':
+      return const Color(0xFF8B5CF6);
+    case 'COMPLETED':
+    case 'DELIVERED':
+      return const Color(0xFF10B981);
+    case 'CANCELLED':
+    case 'CANCELED':
+      return const Color(0xFFEF4444);
+    default:
+      return const Color(0xFF94A3B8);
+  }
+}
+
+String orderPaymentLabel(String method) {
+  switch (method.toUpperCase()) {
+    case 'COD':
+      return 'Thanh toán khi nhận hàng (COD)';
+    case 'BANK_TRANSFER':
+    case 'BANK':
+      return 'Chuyển khoản ngân hàng';
+    case 'VNPAY':
+      return 'Ví VNPay';
+    default:
+      return method;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Voucher validate
+// ─────────────────────────────────────────────
+class VoucherValidateResponse {
+  final bool valid;
+  final int discountPercent;
+  final String message;
+
+  const VoucherValidateResponse({
+    required this.valid,
+    required this.discountPercent,
+    required this.message,
+  });
+
+  factory VoucherValidateResponse.fromJson(Map<String, dynamic> json) {
+    return VoucherValidateResponse(
+      valid: json['valid'] as bool? ?? false,
+      discountPercent: json['discountPercent'] as int? ?? 0,
+      message: json['message'] as String? ?? '',
+    );
+  }
+
+  factory VoucherValidateResponse.fromApiResponse(Map<String, dynamic> json) {
+    final data = json['data'];
+    final message = json['message'] as String? ?? '';
+
+    if (data is bool) {
+      return VoucherValidateResponse(
+        valid: data,
+        discountPercent: 0,
+        message: message.isNotEmpty
+            ? message
+            : (data ? 'Mã giảm giá hợp lệ' : 'Mã không hợp lệ'),
+      );
+    }
+
+    if (data is Map<String, dynamic>) {
+      return VoucherValidateResponse.fromJson({
+        ...data,
+        if (message.isNotEmpty && data['message'] == null) 'message': message,
+      });
+    }
+
+    return VoucherValidateResponse.fromJson(json);
+  }
+}
+
+// ─────────────────────────────────────────────
+// Store branch
+// ─────────────────────────────────────────────
+class StoreBranchResponse {
+  final int id;
+  final String name;
+  final String address;
+  final String? phone;
+  final String? mapsUrl;
+  final String? openTime;
+  final String? closeTime;
+  final String? workingHours;
+
+  const StoreBranchResponse({
+    required this.id,
+    required this.name,
+    required this.address,
+    this.phone,
+    this.mapsUrl,
+    this.openTime,
+    this.closeTime,
+    this.workingHours,
+  });
+
+  factory StoreBranchResponse.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    return StoreBranchResponse(
+      id: parseInt(json['branchId'] ?? json['id']),
+      name: (json['branchName'] as String?) ?? (json['name'] as String?) ?? '',
+      address: json['address'] as String? ?? '',
+      phone: (json['phoneNumber'] as String?) ?? (json['phone'] as String?),
+      mapsUrl: json['mapsUrl'] as String?,
+      openTime: json['openTime'] as String?,
+      closeTime: json['closeTime'] as String?,
+      workingHours: (json['workingHours'] as String?) ?? (json['openingHours'] as String?),
+    );
+  }
+
+  String get hours {
+    if (workingHours != null && workingHours!.isNotEmpty) {
+      return workingHours!;
+    }
+    if (openTime != null && closeTime != null) {
+      return '$openTime - $closeTime';
+    }
+    return '08:00 - 22:00';
+  }
+}
+
+// ─────────────────────────────────────────────
+// VNPay payment
+// ─────────────────────────────────────────────
+class VnpayPaymentResponse {
+  final String paymentUrl;
+
+  const VnpayPaymentResponse({required this.paymentUrl});
+
+  factory VnpayPaymentResponse.fromJson(Map<String, dynamic> json) {
+    return VnpayPaymentResponse(
+      paymentUrl: json['paymentUrl'] as String? ??
+          json['url'] as String? ??
+          json['vnpUrl'] as String? ??
+          '',
+    );
+  }
+}

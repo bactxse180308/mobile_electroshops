@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import 'order_detail_screen.dart';
-import 'stores_screen.dart';
-
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -128,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.inventory_2_outlined,
                   label: 'Đơn hàng của tôi',
                   badge: '3 đang xử lý',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderDetailScreen(orderId: 'ES2025002847'))),
+                  onTap: () => Navigator.pushNamed(context, '/orders'),
                 ),
                 const _Divider2(),
                 const _MenuItem(icon: Icons.location_on_outlined, label: 'Địa chỉ giao hàng'),
@@ -142,7 +139,7 @@ class ProfileScreen extends StatelessWidget {
                 _MenuItem(
                   icon: Icons.store_outlined,
                   label: 'Cửa hàng gần bạn',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StoresScreen())),
+                  onTap: () => Navigator.pushNamed(context, '/store-map'),
                 ),
                 const _Divider2(),
                 const _MenuItem(icon: Icons.settings_outlined, label: 'Cài đặt'),

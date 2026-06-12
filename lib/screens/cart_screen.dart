@@ -7,7 +7,6 @@ import '../models/api_models.dart';
 import '../utils/format_utils.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/app_button.dart';
-import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -501,10 +500,7 @@ class _CheckoutBar extends StatelessWidget {
       disabled: count == 0,
       onPressed: count == 0
           ? null
-          : () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-              ),
+          : () => Navigator.pushNamed(context, '/checkout'),
     );
   }
 }
