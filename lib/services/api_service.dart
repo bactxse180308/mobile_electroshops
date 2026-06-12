@@ -2,19 +2,32 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/api_models.dart';
 
 /// Service trung tâm để giao tiếp với Spring Boot backend.
 class ApiService {
-  // Đổi dòng bên dưới tuỳ theo môi trường test:
-  static const String baseUrl = 'http://10.0.2.2:8080/api/v1';    // ← Android Emulator
-  //static const String baseUrl = 'http://192.168.1.236:8080/api/v1';  // ← Device thật / Docker
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:8080/api/v1';
+    try {
+      return Platform.isAndroid
+          ? 'http://10.0.2.2:8080/api/v1'
+          : 'http://localhost:8080/api/v1';
+    } catch (_) {
+      return 'http://localhost:8080/api/v1';
+    }
+  }
 
   static const Duration _timeout = Duration(seconds: 15);
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('access_token');
+  }
 
   Map<String, String> _authHeaders(String? token) => {
         'Content-Type': 'application/json',
@@ -133,6 +146,99 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> _patch(
+    String path, {
+    Map<String, String?>? params,
+    String? token,
+  }) async {
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) {
+      if (v != null) cleanParams[k] = v;
+    });
+
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
+    );
+
+    debugPrint('[API] PATCH $uri');
+
+    try {
+      final response = await http
+          .patch(uri, headers: _authHeaders(token))
+          .timeout(_timeout);
+
+      debugPrint('[API] ${response.statusCode} ← $path');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = utf8.decode(response.bodyBytes);
+        if (decoded.isEmpty) return {};
+        return json.decode(decoded) as Map<String, dynamic>;
+      }
+
+      final decoded = utf8.decode(response.bodyBytes);
+      debugPrint('[API] Error body: $decoded');
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+      );
+    } on SocketException catch (e) {
+      debugPrint('[API] SocketException: $e → URL: $uri');
+      throw ApiException(statusCode: 0, message: 'Không thể kết nối server: $e');
+    } on http.ClientException catch (e) {
+      debugPrint('[API] ClientException: $e');
+      throw ApiException(statusCode: 0, message: e.message);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[API] Unknown error: $e');
+      throw ApiException(statusCode: 0, message: e.toString());
+    }
+  }
+
+  Future<void> _delete(
+    String path, {
+    Map<String, String?>? params,
+    String? token,
+  }) async {
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) {
+      if (v != null) cleanParams[k] = v;
+    });
+
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
+    );
+
+    debugPrint('[API] DELETE $uri');
+
+    try {
+      final response = await http
+          .delete(uri, headers: _authHeaders(token))
+          .timeout(_timeout);
+
+      debugPrint('[API] ${response.statusCode} ← $path');
+      if (response.statusCode >= 200 && response.statusCode < 300) return;
+
+      final decoded = utf8.decode(response.bodyBytes);
+      debugPrint('[API] Error body: $decoded');
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+      );
+    } on SocketException catch (e) {
+      debugPrint('[API] SocketException: $e → URL: $uri');
+      throw ApiException(statusCode: 0, message: 'Không thể kết nối server: $e');
+    } on http.ClientException catch (e) {
+      debugPrint('[API] ClientException: $e');
+      throw ApiException(statusCode: 0, message: e.message);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[API] Unknown error: $e');
+      throw ApiException(statusCode: 0, message: e.toString());
+    }
+  }
+
   T _parseData<T>(
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromData,
@@ -210,7 +316,88 @@ class ApiService {
     return page.content;
   }
 
+  // ── Attributes & Reviews ─────────────────────────────────────────────────
+
+  Future<List<ApiProductAttributeResponse>> getProductAttributes(int productId) async {
+    final json = await _get('/product-attributes/product/$productId');
+    final data = json['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => ApiProductAttributeResponse.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<ApiPage<ApiReviewResponse>> getProductReviews(
+    int productId, {
+    int page = 0,
+    int size = 20,
+  }) async {
+    final json = await _get('/reviews', params: {
+      'productId': productId.toString(),
+      'page': page.toString(),
+      'size': size.toString(),
+    });
+    return ApiPage.fromJson(
+      json['data'] as Map<String, dynamic>,
+      ApiReviewResponse.fromJson,
+    );
+  }
+
+  Future<ApiRatingStatsResponse> getProductRatingStats(int productId) async {
+    final json = await _get('/reviews/product/$productId/rating-stats');
+    return ApiRatingStatsResponse.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  // ── Cart ─────────────────────────────────────────────────────────────────
+
+  Future<ApiCartResponse> getCart(int userId) async {
+    final token = await _getToken();
+    final json = await _get('/cart/$userId', token: token);
+    return ApiCartResponse.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<ApiCartResponse> addToCart(
+    int userId,
+    int productId,
+    int quantity,
+  ) async {
+    final token = await _getToken();
+    final json = await _post(
+      '/cart/$userId/items',
+      {
+        'productId': productId,
+        'quantity': quantity,
+      },
+      token: token,
+    );
+    return ApiCartResponse.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<ApiCartResponse> updateCartItem(
+    int userId,
+    int productId,
+    int quantity,
+  ) async {
+    final token = await _getToken();
+    final json = await _patch(
+      '/cart/$userId/items/$productId',
+      params: {'quantity': quantity.toString()},
+      token: token,
+    );
+    return ApiCartResponse.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> removeCartItem(int userId, int productId) async {
+    final token = await _getToken();
+    await _delete('/cart/$userId/items/$productId', token: token);
+  }
+
+  Future<void> clearCart(int userId) async {
+    final token = await _getToken();
+    await _delete('/cart/$userId', token: token);
+  }
+
   // ── Orders ───────────────────────────────────────────────────────────────
+
 
   Future<OrderResponse> createOrder(
     CreateOrderRequest request,

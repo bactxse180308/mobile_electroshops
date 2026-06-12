@@ -218,6 +218,168 @@ class ApiBrandResponse {
 }
 
 // ─────────────────────────────────────────────
+// AttributeResponse & ReviewResponse từ BE
+// ─────────────────────────────────────────────
+class ApiProductAttributeResponse {
+  final int attributeId;
+  final String attributeName;
+  final String attributeValue;
+
+  const ApiProductAttributeResponse({
+    required this.attributeId,
+    required this.attributeName,
+    required this.attributeValue,
+  });
+
+  factory ApiProductAttributeResponse.fromJson(Map<String, dynamic> json) {
+    return ApiProductAttributeResponse(
+      attributeId: json['attributeId'] as int? ?? 0,
+      attributeName: json['attributeName'] as String? ?? '',
+      attributeValue: json['attributeValue'] as String? ?? '',
+    );
+  }
+}
+
+class ApiReviewResponse {
+  final int reviewId;
+  final int productId;
+  final int userId;
+  final String userName;
+  final int rating;
+  final String comment;
+  final String? reviewDate;
+  final String? reply;
+
+  const ApiReviewResponse({
+    required this.reviewId,
+    required this.productId,
+    required this.userId,
+    required this.userName,
+    required this.rating,
+    required this.comment,
+    this.reviewDate,
+    this.reply,
+  });
+
+  factory ApiReviewResponse.fromJson(Map<String, dynamic> json) {
+    return ApiReviewResponse(
+      reviewId: json['reviewId'] as int? ?? 0,
+      productId: json['productId'] as int? ?? 0,
+      userId: json['userId'] as int? ?? 0,
+      userName: json['userName'] as String? ?? 'Khách',
+      rating: json['rating'] as int? ?? 5,
+      comment: json['comment'] as String? ?? '',
+      reviewDate: json['reviewDate'] as String?,
+      reply: json['reply'] as String?,
+    );
+  }
+}
+
+class ApiRatingStatsResponse {
+  final double averageRating;
+  final int totalReviews;
+  final Map<String, int> ratingCount;
+
+  const ApiRatingStatsResponse({
+    required this.averageRating,
+    required this.totalReviews,
+    required this.ratingCount,
+  });
+
+  factory ApiRatingStatsResponse.fromJson(Map<String, dynamic> json) {
+    final ratingCount = <String, int>{};
+    final raw = json['ratingCount'];
+    if (raw is Map<String, dynamic>) {
+      raw.forEach((key, value) {
+        if (value is int) {
+          ratingCount[key] = value;
+        } else if (value is num) {
+          ratingCount[key] = value.toInt();
+        }
+      });
+    }
+    return ApiRatingStatsResponse(
+      averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
+      totalReviews: json['totalReviews'] as int? ?? 0,
+      ratingCount: ratingCount,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Cart Response từ BE  (/api/v1/cart/{userId})
+// ─────────────────────────────────────────────
+class ApiCartItemResponse {
+  final int productId;
+  final String productName;
+  final String? mainImage;
+  final double price;
+  final int quantity;
+  final double subtotal;
+
+  const ApiCartItemResponse({
+    required this.productId,
+    required this.productName,
+    this.mainImage,
+    required this.price,
+    required this.quantity,
+    required this.subtotal,
+  });
+
+  factory ApiCartItemResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    return ApiCartItemResponse(
+      productId: json['productId'] as int? ?? 0,
+      productName: json['productName'] as String? ?? '',
+      mainImage: json['mainImage'] as String?,
+      price: parseNum(json['price']),
+      quantity: json['quantity'] as int? ?? 1,
+      subtotal: parseNum(json['subtotal']),
+    );
+  }
+}
+
+class ApiCartResponse {
+  final int cartId;
+  final int userId;
+  final List<ApiCartItemResponse> items;
+  final double totalAmount;
+  final int totalItems;
+
+  const ApiCartResponse({
+    required this.cartId,
+    required this.userId,
+    required this.items,
+    required this.totalAmount,
+    required this.totalItems,
+  });
+
+  factory ApiCartResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return ApiCartResponse(
+      cartId: json['cartId'] as int? ?? 0,
+      userId: json['userId'] as int? ?? 0,
+      items: rawItems
+          .map((e) => ApiCartItemResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalAmount: parseNum(json['totalAmount']),
+      totalItems: json['totalItems'] as int? ?? 0,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
 // Order request / response
 // ─────────────────────────────────────────────
 class OrderItemRequest {

@@ -1,75 +1,220 @@
 import 'package:flutter/foundation.dart';
-import '../models/models.dart';
+import '../models/api_models.dart';
+import '../services/api_service.dart';
 
 class CartProvider extends ChangeNotifier {
-  final List<CartItem> _items = [
-    CartItem(id: 'p1', qty: 2, selected: true),
-    CartItem(id: 'p4', qty: 1, selected: true),
-    CartItem(id: 'p5', qty: 1, selected: false),
-  ];
+  // ── State ────────────────────────────────────────────────────────────────
+  ApiCartResponse? _cart;
+  bool _isLoading = false;
+  String? _error;
 
-  List<CartItem> get items => _items;
+  // Danh sách productId được chọn để checkout
+  final Set<int> _selectedIds = {};
 
-  int get totalCount => _items.fold(0, (sum, i) => sum + i.qty);
+  // ── Getters ──────────────────────────────────────────────────────────────
+  ApiCartResponse? get cart => _cart;
+  List<ApiCartItemResponse> get items => _cart?.items ?? [];
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  List<CartItem> get selectedItems => _items.where((i) => i.selected).toList();
+  int get totalCount => items.fold(0, (sum, i) => sum + i.quantity);
 
-  bool get allSelected => _items.isNotEmpty && _items.every((i) => i.selected);
+  Set<int> get selectedIds => _selectedIds;
 
-  void add(String id, {int qty = 1}) {
-    final existing = _items.cast<CartItem?>().firstWhere(
-      (i) => i!.id == id,
-      orElse: () => null,
-    );
-    if (existing != null) {
-      existing.qty += qty;
+  List<ApiCartItemResponse> get selectedItems =>
+      items.where((i) => _selectedIds.contains(i.productId)).toList();
+
+  bool get allSelected =>
+      items.isNotEmpty && items.every((i) => _selectedIds.contains(i.productId));
+
+  double get selectedSubtotal =>
+      selectedItems.fold(0.0, (sum, i) => sum + i.subtotal);
+
+  /// Phí ship: miễn phí nếu đơn ≥ 500k
+  double get shippingFee => selectedSubtotal >= 500000 ? 0 : 25000;
+
+  double get totalPayable => selectedSubtotal + shippingFee;
+
+  // ── Load từ BE ────────────────────────────────────────────────────────────
+
+  Future<void> loadCart(int userId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _cart = await ApiService().getCart(userId);
+      // Mặc định chọn tất cả sản phẩm
+      _selectedIds
+        ..clear()
+        ..addAll(_cart!.items.map((i) => i.productId));
+    } on ApiException catch (e) {
+      _error = e.message;
+      _cart = null;
+      _selectedIds.clear();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ── Thêm sản phẩm ─────────────────────────────────────────────────────────
+
+  Future<void> addItem(int userId, int productId, int quantity) async {
+    try {
+      _cart = await ApiService().addToCart(userId, productId, quantity);
+      // Tự động chọn sản phẩm vừa thêm
+      _selectedIds.add(productId);
+      notifyListeners();
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ── Cập nhật số lượng ─────────────────────────────────────────────────────
+
+  Future<void> updateQty(int userId, int productId, int quantity) async {
+    // Optimistic update
+    final idx = _cart?.items.indexWhere((i) => i.productId == productId) ?? -1;
+    ApiCartItemResponse? backup;
+    if (idx >= 0 && _cart != null) {
+      backup = _cart!.items[idx];
+      final updatedItem = ApiCartItemResponse(
+        productId: backup.productId,
+        productName: backup.productName,
+        mainImage: backup.mainImage,
+        price: backup.price,
+        quantity: quantity,
+        subtotal: backup.price * quantity,
+      );
+      final newItems = List<ApiCartItemResponse>.from(_cart!.items);
+      newItems[idx] = updatedItem;
+      _cart = ApiCartResponse(
+        cartId: _cart!.cartId,
+        userId: _cart!.userId,
+        items: newItems,
+        totalAmount: newItems.fold(0.0, (s, i) => s + i.subtotal),
+        totalItems: newItems.fold(0, (s, i) => s + i.quantity),
+      );
+      notifyListeners();
+    }
+
+    try {
+      _cart = await ApiService().updateCartItem(userId, productId, quantity);
+      notifyListeners();
+    } on ApiException catch (e) {
+      // Rollback
+      if (backup != null && idx >= 0 && _cart != null) {
+        final newItems = List<ApiCartItemResponse>.from(_cart!.items);
+        newItems[idx] = backup;
+        _cart = ApiCartResponse(
+          cartId: _cart!.cartId,
+          userId: _cart!.userId,
+          items: newItems,
+          totalAmount: newItems.fold(0.0, (s, i) => s + i.subtotal),
+          totalItems: newItems.fold(0, (s, i) => s + i.quantity),
+        );
+      }
+      _error = e.message;
+      notifyListeners();
+    }
+  }
+
+  // ── Xoá sản phẩm ─────────────────────────────────────────────────────────
+
+  Future<void> removeItem(int userId, int productId) async {
+    // Optimistic remove
+    if (_cart != null) {
+      final newItems = _cart!.items.where((i) => i.productId != productId).toList();
+      _cart = ApiCartResponse(
+        cartId: _cart!.cartId,
+        userId: _cart!.userId,
+        items: newItems,
+        totalAmount: newItems.fold(0.0, (s, i) => s + i.subtotal),
+        totalItems: newItems.fold(0, (s, i) => s + i.quantity),
+      );
+      _selectedIds.remove(productId);
+      notifyListeners();
+    }
+
+    try {
+      await ApiService().removeCartItem(userId, productId);
+    } on ApiException catch (e) {
+      _error = e.message;
+      // Refetch để đồng bộ lại
+      await loadCart(userId);
+    }
+  }
+
+  // ── Xoá toàn bộ ──────────────────────────────────────────────────────────
+
+  Future<void> clearAllItems(int userId) async {
+    final backup = _cart;
+    _cart = null;
+    _selectedIds.clear();
+    notifyListeners();
+
+    try {
+      await ApiService().clearCart(userId);
+    } on ApiException catch (e) {
+      _cart = backup;
+      _error = e.message;
+      notifyListeners();
+    }
+  }
+
+  // ── Chọn sản phẩm ────────────────────────────────────────────────────────
+
+  void toggleSelect(int productId) {
+    if (_selectedIds.contains(productId)) {
+      _selectedIds.remove(productId);
     } else {
-      _items.add(CartItem(id: id, qty: qty, selected: true));
+      _selectedIds.add(productId);
     }
     notifyListeners();
   }
 
-  void remove(String id) {
-    _items.removeWhere((i) => i.id == id);
-    notifyListeners();
-  }
-
-  void setQty(String id, int qty) {
-    final item = _items.cast<CartItem?>().firstWhere(
-      (i) => i!.id == id,
-      orElse: () => null,
-    );
-    if (item != null) {
-      item.qty = qty < 1 ? 1 : qty;
-      notifyListeners();
-    }
-  }
-
-  void toggle(String id) {
-    final item = _items.cast<CartItem?>().firstWhere(
-      (i) => i!.id == id,
-      orElse: () => null,
-    );
-    if (item != null) {
-      item.selected = !item.selected;
-      notifyListeners();
-    }
-  }
-
-  void toggleAll(bool selected) {
-    for (final item in _items) {
-      item.selected = selected;
+  void toggleSelectAll(bool select) {
+    if (select) {
+      _selectedIds.addAll(items.map((i) => i.productId));
+    } else {
+      _selectedIds.clear();
     }
     notifyListeners();
   }
 
-  void clear() {
-    _items.clear();
+  // ── Reset khi logout ──────────────────────────────────────────────────────
+
+  void reset() {
+    _cart = null;
+    _selectedIds.clear();
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
     notifyListeners();
   }
 
   void removeSelected() {
-    _items.removeWhere((i) => i.selected);
+    if (_cart == null || _selectedIds.isEmpty) return;
+    final remaining = _cart!.items
+        .where((item) => !_selectedIds.contains(item.productId))
+        .toList();
+    _cart = ApiCartResponse(
+      cartId: _cart!.cartId,
+      userId: _cart!.userId,
+      items: remaining,
+      totalAmount: remaining.fold(0.0, (sum, item) => sum + item.subtotal),
+      totalItems: remaining.fold(0, (sum, item) => sum + item.quantity),
+    );
+    _selectedIds.clear();
     notifyListeners();
   }
 }
