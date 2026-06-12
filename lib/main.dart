@@ -5,6 +5,7 @@ import 'providers/cart_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/order_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
@@ -13,8 +14,12 @@ import 'screens/otp_verification_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/product_detail_screen.dart';
-import 'screens/order_success_screen.dart';
-import 'screens/order_detail_screen.dart';
+import 'screens/checkout/checkout_screen.dart';
+import 'screens/checkout/order_success_screen.dart';
+import 'screens/orders/order_history_screen.dart';
+import 'screens/orders/order_detail_screen.dart';
+import 'screens/store/store_map_screen.dart';
+import 'models/api_models.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -29,6 +34,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
@@ -55,7 +61,14 @@ class ElectroShopApp extends StatelessWidget {
         '/verify-otp': (_) => const OtpVerificationScreen(),
         '/forgot-password': (_) => const ForgotPasswordScreen(),
         '/main': (_) => const MainScreen(),
-        '/order-success': (_) => const OrderSuccessScreen(),
+        '/checkout': (_) => const CheckoutScreen(),
+        '/orders': (_) => const OrderHistoryScreen(),
+        '/store-map': (_) => const StoreMapScreen(),
+        '/order-success': (ctx) {
+          final order = ModalRoute.of(ctx)?.settings.arguments;
+          if (order is OrderResponse) return OrderSuccessScreen(order: order);
+          return const OrderSuccessScreen();
+        },
       },
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';

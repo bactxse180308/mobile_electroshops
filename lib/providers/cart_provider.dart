@@ -67,4 +67,10 @@ class CartProvider extends ChangeNotifier {
     _items.clear();
     notifyListeners();
   }
+
+  void removeSelected() {
+    _items.removeWhere((i) => i.selected);
+    notifyListeners();
+  }
 }
+

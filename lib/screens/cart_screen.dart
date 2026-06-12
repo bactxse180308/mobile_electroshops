@@ -6,7 +6,6 @@ import '../data/seed_data.dart';
 import '../utils/format_utils.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/app_button.dart';
-import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
   final ValueChanged<int>? onNavigate;
@@ -259,7 +258,7 @@ class _CheckoutBtn extends StatelessWidget {
       size: AppButtonSize.lg,
       fullWidth: true,
       disabled: selected.isEmpty,
-      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen())),
+      onPressed: () => Navigator.pushNamed(context, '/checkout'),
     );
   }
 }
