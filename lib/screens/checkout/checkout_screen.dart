@@ -4,12 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../models/api_models.dart';
-import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../services/api_service.dart';
-import '../../data/seed_data.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/top_app_bar.dart';
@@ -41,47 +39,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isSubmitting = false;
   bool _isValidatingVoucher = false;
   Map<String, dynamic>? _voucher;
-  final Map<String, Product> _productCache = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _nameCtrl.text = context.read<AuthProvider>().fullName ?? '';
-      _loadProducts();
     });
   }
 
-  Future<void> _loadProducts() async {
-    final cart = context.read<CartProvider>();
-    for (final item in cart.selectedItems) {
-      if (_productCache.containsKey(item.id)) continue;
-      final seed = findProduct(item.id);
-      if (seed != null) {
-        _productCache[item.id] = seed;
-        continue;
-      }
-      final productId = int.tryParse(item.id);
-      if (productId == null) continue;
-      try {
-        final apiProduct = await _api.getProductById(productId);
-        if (mounted) {
-          setState(() => _productCache[item.id] = Product.fromApi(apiProduct));
-        }
-      } catch (_) {}
-    }
-    if (mounted) setState(() {});
-  }
-
-  Product? _productFor(String id) => _productCache[id] ?? findProduct(id);
-
   int _subtotal(CartProvider cart) {
-    int subtotal = 0;
-    for (final i in cart.selectedItems) {
-      final p = _productFor(i.id);
-      if (p != null) subtotal += p.price * i.qty;
-    }
-    return subtotal;
+    return cart.selectedSubtotal.round();
   }
 
   int _discount(int subtotal) {
@@ -168,7 +136,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
-    print('Placing order with method: $_paymentMethod');
     final auth = context.read<AuthProvider>();
     final token = auth.accessToken;
     final userId = auth.userId;
@@ -201,9 +168,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final items = <OrderItemRequest>[];
     for (final item in selected) {
-      final productId = int.tryParse(item.id.replaceAll(RegExp(r'[^0-9]'), ''));
-      if (productId == null || productId == 0) continue;
-      items.add(OrderItemRequest(productId: productId, quantity: item.qty));
+      if (item.productId == 0) continue;
+      items.add(OrderItemRequest(productId: item.productId, quantity: item.quantity));
     }
     if (items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -396,8 +362,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     title: 'Sản phẩm (${items.length})',
                     child: Column(
                       children: items.map((item) {
-                        final p = _productFor(item.id);
-                        if (p == null) return const SizedBox.shrink();
+                        final image = item.mainImage ?? 'https://picsum.photos/seed/${item.productId}_cover/600/600';
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Row(
@@ -405,7 +370,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  p.images.first,
+                                  image,
                                   width: 56,
                                   height: 56,
                                   fit: BoxFit.cover,
@@ -418,7 +383,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      p.name,
+                                      item.productName,
                                       style: const TextStyle(fontSize: 12, color: AppColors.secondary),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
@@ -427,8 +392,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('x${item.qty}', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                                        Text(formatVND(p.price * item.qty), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                        Text('x${item.quantity}', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                                        Text(formatVND(item.subtotal.round()), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
                                       ],
                                     ),
                                   ],
@@ -474,7 +439,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         final selected = _paymentMethod == m.id;
                         return GestureDetector(
                           onTap: () {
-                            print('Selected payment: ${m.id}');
                             setState(() => _paymentMethod = m.id);
                           },
                           child: Container(
