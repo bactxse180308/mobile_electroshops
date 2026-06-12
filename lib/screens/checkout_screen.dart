@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../providers/cart_provider.dart';
-import '../data/seed_data.dart';
+import '../models/api_models.dart';
 import '../utils/format_utils.dart';
 import '../widgets/app_button.dart';
 import '../widgets/top_app_bar.dart';
@@ -27,16 +27,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
-    final items = cart.selectedItems;
+    final items = cart.selectedItems; // List<ApiCartItemResponse>
 
-    int subtotal = 0;
-    for (final i in items) {
-      final p = findProduct(i.id);
-      if (p != null) subtotal += p.price * i.qty;
-    }
-    final shipping = subtotal > 500000 ? 0 : 25000;
-    const discount = 30000;
-    final total = subtotal + shipping - discount;
+    final subtotal = cart.selectedSubtotal;
+    final shipping = cart.shippingFee;
+    final total = cart.totalPayable;
 
     return Scaffold(
       appBar: const ElectroAppBar(title: 'Thanh toán'),
@@ -51,10 +46,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             child: Row(
               children: ['Địa chỉ', 'Thanh toán', 'Xác nhận'].asMap().entries.map((e) {
-                final i = e.key;
+                final idx = e.key;
                 final label = e.value;
-                final done = i < 2;
-                final active = i == 2;
+                final done = idx < 2;
+                final active = idx == 2;
                 return Expanded(
                   child: Row(
                     children: [
@@ -66,20 +61,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               shape: BoxShape.circle,
                               gradient: done ? AppColors.successGradient : null,
                               color: active ? AppColors.primary : (done ? null : AppColors.muted),
-                              border: active ? null : null,
                             ),
                             child: Center(
                               child: done
                                   ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                  : Text('${i + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: active ? Colors.white : AppColors.mutedForeground)),
+                                  : Text(
+                                      '${idx + 1}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: active ? Colors.white : AppColors.mutedForeground,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: done || active ? AppColors.secondary : AppColors.mutedForeground)),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: done || active ? AppColors.secondary : AppColors.mutedForeground,
+                            ),
+                          ),
                         ],
                       ),
-                      if (i < 2)
-                        Expanded(child: Container(height: 2, margin: const EdgeInsets.only(bottom: 16), color: done ? AppColors.success : AppColors.border)),
+                      if (idx < 2)
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            color: done ? AppColors.success : AppColors.border,
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -97,7 +111,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         Container(
                           width: 36, height: 36,
-                          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           child: const Icon(Icons.location_on_outlined, size: 20, color: AppColors.primary),
                         ),
                         const SizedBox(width: 12),
@@ -107,13 +124,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Text('Nguyễn Minh Tuấn', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                                  Text(
+                                    'Nguyễn Minh Tuấn',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                                  ),
                                   SizedBox(width: 8),
                                   Text('0901 234 567', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                                 ],
                               ),
                               SizedBox(height: 2),
-                              Text('123 Nguyễn Huệ, P. Bến Nghé, Quận 1, TP.HCM', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                              Text(
+                                '123 Nguyễn Huệ, P. Bến Nghé, Quận 1, TP.HCM',
+                                style: TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                              ),
                             ],
                           ),
                         ),
@@ -122,44 +145,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
 
-                  // Products
+                  // Products — dùng ApiCartItemResponse trực tiếp
                   _Section(
                     title: 'Sản phẩm (${items.length})',
                     child: Column(
-                      children: items.map((item) {
-                        final p = findProduct(item.id);
-                        if (p == null) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(p.images[0], width: 56, height: 56, fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.muted),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p.name, style: const TextStyle(fontSize: 12, color: AppColors.secondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text('x${item.qty}', style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                                        Text(formatVND(p.price * item.qty), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                      children: items.map((item) => _CheckoutItemRow(item: item)).toList(),
                     ),
                   ),
 
@@ -173,8 +163,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            border: Border.all(color: _pm == m.id ? AppColors.primary : AppColors.border, width: _pm == m.id ? 1.5 : 1),
-                            color: _pm == m.id ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+                            border: Border.all(
+                              color: _pm == m.id ? AppColors.primary : AppColors.border,
+                              width: _pm == m.id ? 1.5 : 1,
+                            ),
+                            color: _pm == m.id ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -194,10 +187,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 width: 20, height: 20,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: _pm == m.id ? AppColors.primary : AppColors.border, width: 2),
+                                  border: Border.all(
+                                    color: _pm == m.id ? AppColors.primary : AppColors.border,
+                                    width: 2,
+                                  ),
                                 ),
                                 child: _pm == m.id
-                                    ? Center(child: Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.primary)))
+                                    ? Center(
+                                        child: Container(
+                                          width: 10, height: 10,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      )
                                     : null,
                               ),
                             ],
@@ -212,7 +216,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     title: 'Ghi chú đơn hàng',
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: const TextField(
                         maxLines: 3,
                         minLines: 2,
@@ -231,19 +238,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _Section(
                     child: Column(
                       children: [
-                        _Row('Tạm tính', formatVND(subtotal)),
+                        _Row('Tạm tính', formatVND(subtotal.round())),
                         const SizedBox(height: 8),
-                        _Row('Vận chuyển', shipping == 0 ? 'Miễn phí' : formatVND(shipping), valueColor: shipping == 0 ? AppColors.success : null),
-                        const SizedBox(height: 8),
-                        _Row('Giảm giá', '-${formatVND(discount)}', valueColor: AppColors.success),
-                        const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(color: AppColors.border)),
+                        _Row(
+                          'Vận chuyển',
+                          shipping == 0 ? 'Miễn phí' : formatVND(shipping.round()),
+                          valueColor: shipping == 0 ? AppColors.success : null,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(color: AppColors.border),
+                        ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Tổng cộng', style: AppTextStyles.h3),
                             ShaderMask(
                               shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-                              child: Text(formatVND(total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                              child: Text(
+                                formatVND(total.round()),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
                             ),
                           ],
                         ),
@@ -272,7 +287,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const Text('Tổng', style: TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
                     ShaderMask(
                       shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-                      child: Text(formatVND(total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                      child: Text(
+                        formatVND(total.round()),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
@@ -283,8 +301,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     variant: AppButtonVariant.gradient,
                     size: AppButtonSize.lg,
                     onPressed: () {
-                      context.read<CartProvider>().clear();
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OrderSuccessScreen()));
+                      // TODO: Gọi Order API — hiện tại navigate thẳng tới trang thành công
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
+                      );
                     },
                   ),
                 ),
@@ -297,6 +318,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 }
 
+// ── Checkout Item Row ─────────────────────────────────────────────────────────
+class _CheckoutItemRow extends StatelessWidget {
+  final ApiCartItemResponse item;
+  const _CheckoutItemRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = item.mainImage != null && item.mainImage!.isNotEmpty
+        ? item.mainImage!
+        : 'https://picsum.photos/seed/${item.productId}/200/200';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              imageUrl,
+              width: 56, height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 56, height: 56,
+                color: AppColors.muted,
+                child: const Icon(Icons.image_not_supported, size: 24, color: AppColors.mutedForeground),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.productName,
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'x${item.quantity}',
+                      style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                    ),
+                    Text(
+                      formatVND(item.subtotal.round()),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section ───────────────────────────────────────────────────────────────────
 class _Section extends StatelessWidget {
   final String? title;
   final Widget child;
@@ -326,6 +410,7 @@ class _Section extends StatelessWidget {
   }
 }
 
+// ── Row ───────────────────────────────────────────────────────────────────────
 class _Row extends StatelessWidget {
   final String label;
   final String value;
@@ -338,7 +423,14 @@ class _Row extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: valueColor ?? AppColors.secondary)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: valueColor ?? AppColors.secondary,
+          ),
+        ),
       ],
     );
   }

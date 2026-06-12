@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import 'cart_provider.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
+  CartProvider? _cartProvider;
   bool _isLoading = false;
   bool _isAuthenticated = false;
   
@@ -14,6 +16,11 @@ class AuthProvider extends ChangeNotifier {
   String? _role;
   String? _accessToken;
   String? _errorMessage;
+
+  /// Inject CartProvider để tự động load/reset cart
+  void setCartProvider(CartProvider cartProvider) {
+    _cartProvider = cartProvider;
+  }
 
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
@@ -171,6 +178,9 @@ class AuthProvider extends ChangeNotifier {
     _role = null;
     _accessToken = null;
     _errorMessage = null;
+
+    // Reset giỏ hàng khi logout
+    _cartProvider?.reset();
     
     notifyListeners();
   }
@@ -189,6 +199,11 @@ class AuthProvider extends ChangeNotifier {
     _isAuthenticated = true;
 
     notifyListeners();
+
+    // Load giỏ hàng sau auto-login
+    if (_userId != null) {
+      _cartProvider?.loadCart(_userId!);
+    }
     return true;
   }
 
@@ -209,6 +224,11 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('access_token', _accessToken!);
     if (data['refreshToken'] != null) {
       await prefs.setString('refresh_token', data['refreshToken']);
+    }
+
+    // Load giỏ hàng ngay sau khi đăng nhập
+    if (_userId != null) {
+      _cartProvider?.loadCart(_userId!);
     }
   }
 }
