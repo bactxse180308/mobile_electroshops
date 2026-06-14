@@ -381,6 +381,7 @@ class ApiService {
   Future<void> clearCart(int userId) async {
     await _authDelete('/cart/$userId');
   }
+
   // ── Order API ─────────────────────────────────────────────────────────────
 
   /// Tạo đơn hàng mới
@@ -389,7 +390,7 @@ class ApiService {
     String token,
     int userId,
   ) async {
-    final j = await _authPost('/orders', request.toJson(), params: {'userId': userId.toString()});
+    final j = await _authPost('/orders', request.toJson());
     return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
   }
 
@@ -400,15 +401,15 @@ class ApiService {
     int page = 0,
     int size = 10,
   }) async {
-    final j = await _authGet('/orders', params: {
-      'userId': userId.toString(),
+    final j = await _authGet('/orders/user/$userId', params: {
       'page': '$page',
       'size': '$size',
     });
     return ApiPage.fromJson(
       j['data'] as Map<String, dynamic>,
-      (e) => OrderResponse.fromJson(e),
+      (e) => OrderResponse.fromJson(e as Map<String, dynamic>),
     );
+
   }
 
   /// Lấy chi tiết đơn hàng theo ID
@@ -418,12 +419,8 @@ class ApiService {
   }
 
   /// Hủy đơn hàng
-  Future<void> cancelOrder(int id, String token, {String? reason}) async {
-    await _authPost(
-      '/orders/$id/cancel',
-      {},
-      params: reason != null ? {'reason': reason} : null,
-    );
+  Future<void> cancelOrder(int id, String token) async {
+    await _authPatch('/orders/$id/cancel');
   }
 }
 
