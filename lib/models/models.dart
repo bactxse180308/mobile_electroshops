@@ -185,6 +185,7 @@ class NotifModel {
   final String body;
   final String time;
   bool unread;
+  final String? orderId;
 
   NotifModel({
     required this.id,
@@ -193,6 +194,7 @@ class NotifModel {
     required this.body,
     required this.time,
     required this.unread,
+    this.orderId,
   });
 }
 

@@ -210,10 +210,10 @@ class AppStrings {
   // Chat & Notifications & Stores & Profile
   static const String chatTitle = 'Hỗ trợ trực tuyến';
   static const String notificationsTitle = 'Thông báo';
-  static const String readAll = 'Đọc tất cả';
+  static const String readAll = 'Đánh dấu tất cả đã đọc';
   static const String tabAll = 'Tất cả';
   static const String tabUnread = 'Chưa đọc';
-  static const String noNotifTitle = 'Chưa có thông báo';
+  static const String noNotifTitle = 'Bạn chưa có thông báo nào';
   static const String noNotifSub = 'Bạn sẽ nhận được thông báo về đơn hàng và khuyến mãi tại đây.';
   
   static const String storesTitle = 'Cửa hàng';

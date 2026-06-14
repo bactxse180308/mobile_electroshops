@@ -38,4 +38,15 @@ class NotificationService {
       throw Exception(responseData['message'] ?? 'Không thể đánh dấu tất cả đã đọc.');
     }
   }
+
+  Future<void> deleteNotification(String id) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/notifications/$id');
+    final headers = await ApiConfig.getHeaders(requireAuth: true);
+    final response = await http.delete(url, headers: headers);
+    final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode != 200 || responseData['status'] != 200) {
+      throw Exception(responseData['message'] ?? 'Không thể xóa thông báo.');
+    }
+  }
 }
