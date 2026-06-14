@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/models.dart';
 import '../../../providers/notification_provider.dart';
@@ -56,8 +57,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<NotificationProvider>();
-    final list = _tab == 'all' ? provider.items : provider.unread;
-    final unreadCount = provider.unread.length;
+    
+    List<NotifModel> list;
+    switch (_tab) {
+      case 'unread':
+        list = provider.items.where((n) => n.unread).toList();
+        break;
+      case 'order':
+        list = provider.items.where((n) => n.type == NotifType.order).toList();
+        break;
+      case 'promo':
+        list = provider.items.where((n) => n.type == NotifType.promo).toList();
+        break;
+      case 'all':
+      default:
+        list = provider.items;
+        break;
+    }
+
+    final unreadCount = provider.items.where((n) => n.unread).length;
     final isLoading = provider.isLoading;
 
     return Column(
@@ -81,13 +99,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 ],
               ),
-              Padding(
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.fromLTRB(AppSizes.p12, 0, AppSizes.p12, AppSizes.p12),
                 child: Row(
                   children: [
-                    Expanded(child: _Tab(label: AppStrings.tabAll, active: _tab == 'all', onTap: () => setState(() => _tab = 'all'))),
+                    _FilterChip(
+                      label: AppStrings.tabAll,
+                      active: _tab == 'all',
+                      onTap: () => setState(() => _tab = 'all'),
+                    ),
                     const SizedBox(width: AppSizes.p8),
-                    Expanded(child: _Tab(label: '${AppStrings.tabUnread} ($unreadCount)', active: _tab == 'unread', onTap: () => setState(() => _tab = 'unread'))),
+                    _FilterChip(
+                      label: '${AppStrings.tabUnread} ($unreadCount)',
+                      active: _tab == 'unread',
+                      onTap: () => setState(() => _tab = 'unread'),
+                    ),
+                    const SizedBox(width: AppSizes.p8),
+                    _FilterChip(
+                      label: 'Đơn hàng',
+                      active: _tab == 'order',
+                      onTap: () => setState(() => _tab = 'order'),
+                    ),
+                    const SizedBox(width: AppSizes.p8),
+                    _FilterChip(
+                      label: 'Khuyến mãi',
+                      active: _tab == 'promo',
+                      onTap: () => setState(() => _tab = 'promo'),
+                    ),
                   ],
                 ),
               ),
@@ -103,12 +142,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   child: list.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 100),
+                          children: [
+                            const SizedBox(height: 100),
                             EmptyState(
                               icon: Icons.notifications_off_outlined,
-                              title: AppStrings.noNotifTitle,
-                              body: AppStrings.noNotifSub,
+                              title: provider.items.isEmpty 
+                                  ? AppStrings.noNotifTitle 
+                                  : 'Không có thông báo',
+                              body: provider.items.isEmpty 
+                                  ? AppStrings.noNotifSub 
+                                  : 'Không tìm thấy thông báo nào trong danh mục này.',
                             ),
                           ],
                         )
@@ -118,9 +161,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
                           itemBuilder: (context, i) {
                             final n = list[i];
-                            return GestureDetector(
-                              onTap: () => context.read<NotificationProvider>().markRead(n.id),
-                              child: Container(
+                            return Dismissible(
+                              key: Key(n.id),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                color: Colors.red.shade600,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.symmetric(horizontal: AppSizes.p20),
+                                child: const Icon(Icons.delete_outline, color: Colors.white, size: AppSizes.iconMd),
+                              ),
+                              onDismissed: (direction) {
+                                context.read<NotificationProvider>().deleteNotification(n.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Đã xóa thông báo'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              child: GestureDetector(
+                                onTap: () {
+                                  context.read<NotificationProvider>().markRead(n.id);
+                                  if (n.type == NotifType.order && n.orderId != null) {
+                                    Navigator.pushNamed(context, AppRoutes.orderDetail(n.orderId!));
+                                  }
+                                },
+                                child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16, vertical: 14),
                                   color: n.unread ? AppColors.primary.withValues(alpha: 0.05) : AppColors.background,
                                   child: Row(
@@ -135,30 +201,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                         child: Icon(_iconOf(n.type), size: AppSizes.iconMd, color: _colorOf(n.type)),
                                       ),
                                       const SizedBox(width: AppSizes.p12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(n.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary), overflow: TextOverflow.ellipsis),
-                                              ),
-                                              if (n.unread)
-                                                Container(
-                                                  width: AppSizes.p8, height: AppSizes.p8,
-                                                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(n.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary), overflow: TextOverflow.ellipsis),
                                                 ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                          const SizedBox(height: AppSizes.p4),
-                                          Text(n.time, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                                        ],
+                                                if (n.unread)
+                                                  Container(
+                                                    width: AppSizes.p8, height: AppSizes.p8,
+                                                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            const SizedBox(height: AppSizes.p4),
+                                            Text(n.time, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -171,23 +238,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-class _Tab extends StatelessWidget {
+class _FilterChip extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _Tab({required this.label, required this.active, required this.onTap});
+
+  const _FilterChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: AppSizes.btnHeightSm,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16, vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.muted,
-          borderRadius: BorderRadius.circular(AppSizes.r8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? AppColors.primary : AppColors.border,
+            width: 1,
+          ),
         ),
-        child: Center(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: active ? Colors.white : AppColors.secondary))),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.bold : FontWeight.w500,
+            color: active ? Colors.white : AppColors.secondary,
+          ),
+        ),
       ),
     );
   }

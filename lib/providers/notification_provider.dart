@@ -18,13 +18,26 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final list = await _notificationService.fetchNotifications();
       _items = list.map((item) {
+        final title = item['title'] ?? '';
+        final body = item['body'] ?? '';
+        final type = _parseType(item['type'] ?? 'system');
+
+        String? orderId;
+        if (type == NotifType.order) {
+          final match = RegExp(r'#(\d+)').firstMatch('$title $body');
+          if (match != null) {
+            orderId = match.group(1);
+          }
+        }
+
         return NotifModel(
           id: item['notificationId'].toString(),
-          title: item['title'] ?? '',
-          body: item['body'] ?? '',
-          type: _parseType(item['type'] ?? 'system'),
+          title: title,
+          body: body,
+          type: type,
           time: _formatDateTime(item['createdAt'] ?? ''),
           unread: !(item['isRead'] ?? false),
+          orderId: orderId,
         );
       }).toList();
     } catch (e) {
@@ -69,6 +82,26 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteNotification(String id) async {
+    final itemIndex = _items.indexWhere((n) => n.id == id);
+    if (itemIndex == -1) return;
+
+    final deletedItem = _items[itemIndex];
+    
+    // Optimistic UI update
+    _items.removeAt(itemIndex);
+    notifyListeners();
+
+    try {
+      await _notificationService.deleteNotification(id);
+    } catch (e) {
+      if (kDebugMode) print('Error deleting notification: $e');
+      // Revert if error
+      _items.insert(itemIndex, deletedItem);
+      notifyListeners();
+    }
+  }
+
   NotifType _parseType(String typeStr) {
     switch (typeStr.toLowerCase()) {
       case 'promo':
@@ -86,16 +119,24 @@ class NotificationProvider extends ChangeNotifier {
   String _formatDateTime(String dateTimeStr) {
     try {
       final dt = DateTime.parse(dateTimeStr);
-      final hour = dt.hour.toString().padLeft(2, '0');
-      final minute = dt.minute.toString().padLeft(2, '0');
-      final day = dt.day.toString().padLeft(2, '0');
-      final month = dt.month.toString().padLeft(2, '0');
-      
       final now = DateTime.now();
-      if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
-        return "Hôm nay, $hour:$minute";
+      final difference = now.difference(dt);
+
+      if (difference.isNegative || difference.inSeconds < 60) {
+        return 'Vừa xong';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes} phút trước';
+      } else if (difference.inHours < 24) {
+        return '${difference.inHours} giờ trước';
+      } else if (difference.inDays == 1 || 
+                 (difference.inDays == 2 && dt.day == now.subtract(const Duration(days: 1)).day)) {
+        return 'Hôm qua';
+      } else {
+        final day = dt.day.toString().padLeft(2, '0');
+        final month = dt.month.toString().padLeft(2, '0');
+        final year = dt.year;
+        return '$day/$month/$year';
       }
-      return "$hour:$minute - $day/$month";
     } catch (_) {
       return dateTimeStr;
     }

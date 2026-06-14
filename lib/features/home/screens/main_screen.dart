@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/widgets/bottom_nav_bar.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/notification_provider.dart';
 import 'home_screen.dart';
 import '../../product/screens/categories_screen.dart';
 import '../../cart/screens/cart_screen.dart';
@@ -29,6 +32,12 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated) {
+        context.read<NotificationProvider>().fetchNotifications();
+      }
+    });
   }
 
   void _onTabTap(int index) {

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/notification_provider.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -17,6 +18,7 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cartCount = context.watch<CartProvider>().totalCount;
+    final unreadNotifCount = context.watch<NotificationProvider>().unread.length;
 
     return Container(
       height: 64 + MediaQuery.of(context).padding.bottom,
@@ -58,6 +60,7 @@ class BottomNavBar extends StatelessWidget {
             index: 3,
             currentIndex: currentIndex,
             onTap: onTap,
+            badge: unreadNotifCount > 0 ? (unreadNotifCount > 9 ? '9+' : '$unreadNotifCount') : null,
           ),
           _NavItem(
             icon: Icons.person_outline,

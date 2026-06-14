@@ -21,6 +21,7 @@ class CheckoutItemRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.p12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppSizes.r8),
@@ -41,29 +42,26 @@ class CheckoutItemRow extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   item.productName,
-                  style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSizes.p4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'x${item.quantity}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
-                    ),
-                    Text(
-                      formatVND(item.subtotal.round()),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
-                    ),
-                  ],
+                Text(
+                  'x${item.quantity}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: AppSizes.p12),
+          Text(
+            formatVND(item.subtotal.round()),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
           ),
         ],
       ),
