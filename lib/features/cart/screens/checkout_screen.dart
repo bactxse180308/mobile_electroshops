@@ -5,6 +5,9 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/order_provider.dart';
+import '../../../models/api_models.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/top_app_bar.dart';
@@ -27,6 +30,98 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String _pm = 'cod';
+  bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _noteCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = context.read<AuthProvider>();
+    _nameCtrl = TextEditingController(text: auth.fullName ?? '');
+    _phoneCtrl = TextEditingController(text: '0901234567');
+    _addressCtrl = TextEditingController(text: AppStrings.mockUserAddress);
+    _noteCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _placeOrder() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = context.read<AuthProvider>();
+    final cart = context.read<CartProvider>();
+    final orderProvider = context.read<OrderProvider>();
+
+    if (auth.userId == null || auth.accessToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để đặt hàng')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final orderRequest = CreateOrderRequest(
+      shippingAddress: '${_nameCtrl.text.trim()} | ${_phoneCtrl.text.trim()} | ${_addressCtrl.text.trim()}',
+      paymentMethod: _pm.toUpperCase(),
+      voucherCode: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null, // dùng làm ghi chú/voucher
+      items: cart.selectedItems.map((i) => OrderItemRequest(
+        productId: i.productId,
+        quantity: i.quantity,
+      )).toList(),
+    );
+
+    try {
+      final order = await orderProvider.createOrder(
+        orderRequest,
+        auth.accessToken!,
+        auth.userId!,
+      );
+
+      if (order != null) {
+        // Tải lại giỏ hàng từ BE
+        await cart.loadCart(auth.userId!);
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => OrderSuccessScreen(order: order)),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(orderProvider.error ?? 'Đặt hàng thất bại, vui lòng thử lại'),
+            backgroundColor: AppColors.destructive,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.destructive,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,190 +202,197 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
 
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Address
-                  CheckoutSection(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Address Form
+                    CheckoutSection(
+                      title: AppStrings.stepAddress,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _nameCtrl,
+                            decoration: const InputDecoration(
+                              labelText: AppStrings.fullNameLabel,
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            validator: (v) => v == null || v.trim().isEmpty ? AppStrings.errEmptyFields : null,
                           ),
-                          child: const Icon(Icons.location_on_outlined, size: 20, color: AppColors.primary),
-                        ),
-                        const SizedBox(width: AppSizes.p12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    AppStrings.mockUserName,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.secondary,
+                          const SizedBox(height: AppSizes.p12),
+                          TextFormField(
+                            controller: _phoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              labelText: AppStrings.phoneLabel,
+                              prefixIcon: Icon(Icons.phone_outlined),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return AppStrings.errEmptyFields;
+                              if (v.trim().length < 10) return AppStrings.errInvalidPhone;
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: AppSizes.p12),
+                          TextFormField(
+                            controller: _addressCtrl,
+                            maxLines: 2,
+                            decoration: const InputDecoration(
+                              labelText: AppStrings.addressLabel,
+                              prefixIcon: Icon(Icons.location_on_outlined),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            validator: (v) => v == null || v.trim().isEmpty ? AppStrings.errEmptyFields : null,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Products — dùng ApiCartItemResponse trực tiếp
+                    CheckoutSection(
+                      title: '${AppStrings.productsTitle} (${items.length})',
+                      child: Column(
+                        children: items.map((item) => CheckoutItemRow(item: item)).toList(),
+                      ),
+                    ),
+
+                    // Payment methods
+                    CheckoutSection(
+                      title: AppStrings.paymentMethod,
+                      child: Column(
+                        children: _methods
+                            .map((m) => GestureDetector(
+                                  onTap: () => setState(() => _pm = m.id),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: AppSizes.p8),
+                                    padding: const EdgeInsets.all(AppSizes.p12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: _pm == m.id ? AppColors.primary : AppColors.border,
+                                        width: _pm == m.id ? 1.5 : 1,
+                                      ),
+                                      color: _pm == m.id ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(AppSizes.r12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(m.emoji, style: const TextStyle(fontSize: 24)),
+                                        const SizedBox(width: AppSizes.p12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                m.label,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.secondary,
+                                                ),
+                                              ),
+                                              Text(
+                                                m.sub,
+                                                style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: _pm == m.id ? AppColors.primary : AppColors.border,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: _pm == m.id
+                                              ? Center(
+                                                  child: Container(
+                                                    width: 10,
+                                                    height: 10,
+                                                    decoration: const BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  SizedBox(width: AppSizes.p8),
-                                  Text(AppStrings.mockUserPhone, style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                                ],
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                AppStrings.mockUserAddress,
-                                style: TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+
+                    // Note
+                    CheckoutSection(
+                      title: AppStrings.orderNotes,
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSizes.p12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: TextFormField(
+                          controller: _noteCtrl,
+                          maxLines: 3,
+                          minLines: 2,
+                          decoration: const InputDecoration(
+                            hintText: AppStrings.orderNotesHint,
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+
+                    // Summary
+                    CheckoutSection(
+                      child: Column(
+                        children: [
+                          _Row(AppStrings.subtotal, formatVND(subtotal.round())),
+                          const SizedBox(height: AppSizes.p8),
+                          _Row(
+                            AppStrings.shipping,
+                            shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
+                            valueColor: shipping == 0 ? AppColors.success : null,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: AppSizes.p10),
+                            child: Divider(color: AppColors.border),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(AppStrings.totalPayable, style: AppTextStyles.h3),
+                              ShaderMask(
+                                shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+                                child: Text(
+                                  formatVND(total.round()),
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
-                      ],
-                    ),
-                  ),
-
-                  // Products — dùng ApiCartItemResponse trực tiếp
-                  CheckoutSection(
-                    title: '${AppStrings.productsTitle} (${items.length})',
-                    child: Column(
-                      children: items.map((item) => CheckoutItemRow(item: item)).toList(),
-                    ),
-                  ),
-
-                  // Payment methods
-                  CheckoutSection(
-                    title: AppStrings.paymentMethod,
-                    child: Column(
-                      children: _methods
-                          .map((m) => GestureDetector(
-                                onTap: () => setState(() => _pm = m.id),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: AppSizes.p8),
-                                  padding: const EdgeInsets.all(AppSizes.p12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: _pm == m.id ? AppColors.primary : AppColors.border,
-                                      width: _pm == m.id ? 1.5 : 1,
-                                    ),
-                                    color: _pm == m.id ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(AppSizes.r12),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(m.emoji, style: const TextStyle(fontSize: 24)),
-                                      const SizedBox(width: AppSizes.p12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              m.label,
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.secondary,
-                                              ),
-                                            ),
-                                            Text(
-                                              m.sub,
-                                              style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: _pm == m.id ? AppColors.primary : AppColors.border,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: _pm == m.id
-                                            ? Center(
-                                                child: Container(
-                                                  width: 10,
-                                                  height: 10,
-                                                  decoration: const BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: AppColors.primary,
-                                                  ),
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-
-                  // Note
-                  CheckoutSection(
-                    title: AppStrings.orderNotes,
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSizes.p12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const TextField(
-                        maxLines: 3,
-                        minLines: 2,
-                        decoration: InputDecoration(
-                          hintText: AppStrings.orderNotesHint,
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        style: TextStyle(fontSize: 13),
+                        ],
                       ),
                     ),
-                  ),
-
-                  // Summary
-                  CheckoutSection(
-                    child: Column(
-                      children: [
-                        _Row(AppStrings.subtotal, formatVND(subtotal.round())),
-                        const SizedBox(height: AppSizes.p8),
-                        _Row(
-                          AppStrings.shipping,
-                          shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
-                          valueColor: shipping == 0 ? AppColors.success : null,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppSizes.p10),
-                          child: Divider(color: AppColors.border),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(AppStrings.totalPayable, style: AppTextStyles.h3),
-                            ShaderMask(
-                              shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-                              child: Text(
-                                formatVND(total.round()),
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.p12),
-                ],
+                    const SizedBox(height: AppSizes.p12),
+                  ],
+                ),
               ),
             ),
           ),
@@ -321,15 +423,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(width: AppSizes.p12),
                 Expanded(
                   child: AppButton(
-                    label: AppStrings.placeOrder,
+                    label: _isLoading ? null : AppStrings.placeOrder,
                     variant: AppButtonVariant.gradient,
                     size: AppButtonSize.lg,
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
-                      );
-                    },
+                    disabled: items.isEmpty || _isLoading,
+                    onPressed: items.isEmpty || _isLoading ? null : _placeOrder,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : null,
                   ),
                 ),
               ],
