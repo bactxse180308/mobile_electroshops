@@ -20,6 +20,7 @@ import 'features/product/screens/product_detail_screen.dart';
 import 'features/cart/screens/order_success_screen.dart';
 import 'features/cart/screens/order_detail_screen.dart';
 import 'features/cart/screens/checkout_screen.dart';
+import 'features/cart/screens/order_history_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,7 @@ class ElectroShopApp extends StatelessWidget {
         AppRoutes.main: (_) => const MainScreen(),
         AppRoutes.orderSuccess: (_) => const OrderSuccessScreen(),
         AppRoutes.checkout: (_) => const CheckoutScreen(),
+        AppRoutes.orderHistory: (_) => const OrderHistoryScreen(),
       },
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';

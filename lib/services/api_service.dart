@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -28,6 +29,70 @@ class ApiService {
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
+  }
+
+  // Refresh token mechanism to handle access token expiration (401 Unauthorized)
+  bool _isRefreshing = false;
+  Future<String?>? _refreshTokenFuture;
+
+  Future<String?> _refreshAccessToken() async {
+    if (_isRefreshing) {
+      debugPrint('[API] Waiting for existing token refresh operation...');
+      return _refreshTokenFuture;
+    }
+
+    _isRefreshing = true;
+    final completer = Completer<String?>();
+    _refreshTokenFuture = completer.future;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString('refresh_token');
+      if (refreshToken == null) {
+        debugPrint('[API] Refresh token not found in storage.');
+        completer.complete(null);
+        return null;
+      }
+
+      final uri = Uri.parse('$baseUrl/auth/refresh');
+      debugPrint('[API] Refreshing access token...');
+      final response = await http.post(
+        uri,
+        headers: _baseHeaders(),
+        body: json.encode({'refreshToken': refreshToken}),
+      ).timeout(_timeout);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = utf8.decode(response.bodyBytes);
+        final decoded = json.decode(body) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>;
+        
+        final newAccessToken = data['accessToken'] as String;
+        final newRefreshToken = data['refreshToken'] as String?;
+
+        await prefs.setString('access_token', newAccessToken);
+        if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+          await prefs.setString('refresh_token', newRefreshToken);
+        }
+        
+        debugPrint('[API] Access token refreshed successfully.');
+        completer.complete(newAccessToken);
+      } else {
+        debugPrint('[API] Failed to refresh token: ${response.statusCode}');
+        // Clear expired tokens so the user is forced to log in again
+        await prefs.remove('access_token');
+        await prefs.remove('refresh_token');
+        completer.complete(null);
+      }
+    } catch (e) {
+      debugPrint('[API] Error during token refresh: $e');
+      completer.complete(null);
+    } finally {
+      _isRefreshing = false;
+      _refreshTokenFuture = null;
+    }
+
+    return completer.future;
   }
 
   Map<String, String> _baseHeaders({String? token}) {
@@ -61,17 +126,46 @@ class ApiService {
       queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
     debugPrint('[API] GET(auth) $uri');
-    return _send(http.get(uri, headers: _baseHeaders(token: token)), path);
+    try {
+      return await _send(http.get(uri, headers: _baseHeaders(token: token)), path);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        final newToken = await _refreshAccessToken();
+        if (newToken != null) {
+          debugPrint('[API] Retrying GET(auth) $uri with new token');
+          return await _send(http.get(uri, headers: _baseHeaders(token: newToken)), path);
+        }
+      }
+      rethrow;
+    }
   }
 
-  Future<Map<String, dynamic>> _authPost(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _authPost(String path, Map<String, dynamic> body, {Map<String, String?>? params}) async {
     final token = await _getToken();
-    final uri = Uri.parse('$baseUrl$path');
-    debugPrint('[API] POST(auth) $uri');
-    return _send(
-      http.post(uri, headers: _baseHeaders(token: token), body: json.encode(body)),
-      path,
+    final cleanParams = <String, String>{};
+    params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
+    debugPrint('[API] POST(auth) $uri');
+    try {
+      return await _send(
+        http.post(uri, headers: _baseHeaders(token: token), body: json.encode(body)),
+        path,
+      );
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        final newToken = await _refreshAccessToken();
+        if (newToken != null) {
+          debugPrint('[API] Retrying POST(auth) $uri with new token');
+          return await _send(
+            http.post(uri, headers: _baseHeaders(token: newToken), body: json.encode(body)),
+            path,
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> _authPatch(String path, {Map<String, String?>? params}) async {
@@ -82,7 +176,18 @@ class ApiService {
       queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
     debugPrint('[API] PATCH(auth) $uri');
-    return _send(http.patch(uri, headers: _baseHeaders(token: token)), path);
+    try {
+      return await _send(http.patch(uri, headers: _baseHeaders(token: token)), path);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        final newToken = await _refreshAccessToken();
+        if (newToken != null) {
+          debugPrint('[API] Retrying PATCH(auth) $uri with new token');
+          return await _send(http.patch(uri, headers: _baseHeaders(token: newToken)), path);
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<void> _authDelete(String path, {Map<String, String?>? params}) async {
@@ -93,24 +198,41 @@ class ApiService {
       queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
     debugPrint('[API] DELETE(auth) $uri');
+
+    Future<void> sendRequest(String? currentToken) async {
+      try {
+        final response = await http
+            .delete(uri, headers: _baseHeaders(token: currentToken))
+            .timeout(_timeout);
+        debugPrint('[API] ${response.statusCode} ← $path');
+        if (response.statusCode >= 200 && response.statusCode < 300) return;
+        final body = utf8.decode(response.bodyBytes);
+        debugPrint('[API] Error body: $body');
+        throw ApiException(
+          statusCode: response.statusCode,
+          message: 'HTTP ${response.statusCode}',
+        );
+      } on SocketException catch (e) {
+        throw ApiException(statusCode: 0, message: 'Không thể kết nối server: $e');
+      } on ApiException {
+        rethrow;
+      } catch (e) {
+        throw ApiException(statusCode: 0, message: e.toString());
+      }
+    }
+
     try {
-      final response = await http
-          .delete(uri, headers: _baseHeaders(token: token))
-          .timeout(_timeout);
-      debugPrint('[API] ${response.statusCode} ← $path');
-      if (response.statusCode >= 200 && response.statusCode < 300) return;
-      final body = utf8.decode(response.bodyBytes);
-      debugPrint('[API] Error body: $body');
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: 'HTTP ${response.statusCode}',
-      );
-    } on SocketException catch (e) {
-      throw ApiException(statusCode: 0, message: 'Không thể kết nối server: $e');
-    } on ApiException {
+      await sendRequest(token);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        final newToken = await _refreshAccessToken();
+        if (newToken != null) {
+          debugPrint('[API] Retrying DELETE(auth) $uri with new token');
+          await sendRequest(newToken);
+          return;
+        }
+      }
       rethrow;
-    } catch (e) {
-      throw ApiException(statusCode: 0, message: e.toString());
     }
   }
 
@@ -259,7 +381,6 @@ class ApiService {
   Future<void> clearCart(int userId) async {
     await _authDelete('/cart/$userId');
   }
-
   // ── Order API ─────────────────────────────────────────────────────────────
 
   /// Tạo đơn hàng mới
@@ -268,7 +389,7 @@ class ApiService {
     String token,
     int userId,
   ) async {
-    final j = await _authPost('/orders', request.toJson());
+    final j = await _authPost('/orders', request.toJson(), params: {'userId': userId.toString()});
     return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
   }
 
@@ -279,15 +400,15 @@ class ApiService {
     int page = 0,
     int size = 10,
   }) async {
-    final j = await _authGet('/orders/user/$userId', params: {
+    final j = await _authGet('/orders', params: {
+      'userId': userId.toString(),
       'page': '$page',
       'size': '$size',
     });
     return ApiPage.fromJson(
       j['data'] as Map<String, dynamic>,
-      (e) => OrderResponse.fromJson(e as Map<String, dynamic>),
+      (e) => OrderResponse.fromJson(e),
     );
-
   }
 
   /// Lấy chi tiết đơn hàng theo ID
@@ -297,8 +418,12 @@ class ApiService {
   }
 
   /// Hủy đơn hàng
-  Future<void> cancelOrder(int id, String token) async {
-    await _authPatch('/orders/$id/cancel');
+  Future<void> cancelOrder(int id, String token, {String? reason}) async {
+    await _authPost(
+      '/orders/$id/cancel',
+      {},
+      params: reason != null ? {'reason': reason} : null,
+    );
   }
 }
 

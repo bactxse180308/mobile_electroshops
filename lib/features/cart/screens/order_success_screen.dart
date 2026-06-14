@@ -5,10 +5,12 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../models/api_models.dart';
 import 'order_detail_screen.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
-  const OrderSuccessScreen({super.key});
+  final OrderResponse? order;
+  const OrderSuccessScreen({super.key, this.order});
 
   @override
   State<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
@@ -36,6 +38,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final orderIdStr = widget.order != null ? widget.order!.orderId.toString() : 'ES2025002847';
+
     return Scaffold(
       body: Stack(
         children: [
@@ -118,10 +122,13 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> with SingleTick
                           borderRadius: BorderRadius.circular(AppSizes.r12),
                         ),
                         child: Column(
-                          children: const [
-                            Text(AppStrings.orderCode, style: TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                            SizedBox(height: AppSizes.p4),
-                            Text(AppStrings.mockOrderCode, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 2, fontFamily: 'monospace')),
+                          children: [
+                            const Text(AppStrings.orderCode, style: TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
+                            const SizedBox(height: AppSizes.p4),
+                            Text(
+                              widget.order != null ? '#${widget.order!.orderId}' : AppStrings.mockOrderCode,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 2, fontFamily: 'monospace'),
+                            ),
                           ],
                         ),
                       ),
@@ -139,7 +146,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> with SingleTick
                       size: AppButtonSize.lg,
                       fullWidth: true,
                       onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(
-                        builder: (_) => const OrderDetailScreen(orderId: 'ES2025002847'),
+                        builder: (_) => OrderDetailScreen(orderId: orderIdStr),
                       )),
                     ),
                     const SizedBox(height: AppSizes.p12),

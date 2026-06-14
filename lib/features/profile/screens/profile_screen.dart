@@ -6,7 +6,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../cart/screens/order_detail_screen.dart';
+import '../../cart/screens/order_history_screen.dart';
 import '../../stores/screens/stores_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -128,7 +128,10 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.inventory_2_outlined,
                   label: AppStrings.myOrders,
                   badge: AppStrings.pendingOrders,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderDetailScreen(orderId: 'ES2025002847'))),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+                  ),
                 ),
                 const _Divider2(),
                 const _MenuItem(icon: Icons.location_on_outlined, label: AppStrings.shippingAddress),

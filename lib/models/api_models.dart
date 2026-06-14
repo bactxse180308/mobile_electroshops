@@ -376,46 +376,121 @@ class ApiCartResponse {
 // Order Models
 // ─────────────────────────────────────────────
 
-class CreateOrderRequest {
-  final int userId;
-  final String paymentMethod;
-  final String shippingAddress;
-  final List<int> cartItemIds;
+class OrderItemRequest {
+  final int productId;
+  final int quantity;
 
-  const CreateOrderRequest({
-    required this.userId,
-    required this.paymentMethod,
-    required this.shippingAddress,
-    required this.cartItemIds,
+  const OrderItemRequest({
+    required this.productId,
+    required this.quantity,
   });
 
   Map<String, dynamic> toJson() => {
-    'userId': userId,
-    'paymentMethod': paymentMethod,
-    'shippingAddress': shippingAddress,
-    'cartItemIds': cartItemIds,
+    'productId': productId,
+    'quantity': quantity,
   };
+}
+
+class CreateOrderRequest {
+  final String shippingAddress;
+  final String paymentMethod;
+  final String? voucherCode;
+  final List<OrderItemRequest> items;
+
+  const CreateOrderRequest({
+    required this.shippingAddress,
+    required this.paymentMethod,
+    this.voucherCode,
+    required this.items,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'shippingAddress': shippingAddress,
+    'paymentMethod': paymentMethod,
+    if (voucherCode != null) 'voucherCode': voucherCode,
+    'items': items.map((i) => i.toJson()).toList(),
+  };
+}
+
+class OrderItemResponse {
+  final int orderDetailId;
+  final int productId;
+  final String productName;
+  final String? productImage;
+  final int quantity;
+  final double unitPrice;
+  final double subtotal;
+  final String? branchName;
+  final int? branchId;
+
+  const OrderItemResponse({
+    required this.orderDetailId,
+    required this.productId,
+    required this.productName,
+    this.productImage,
+    required this.quantity,
+    required this.unitPrice,
+    required this.subtotal,
+    this.branchName,
+    this.branchId,
+  });
+
+  factory OrderItemResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    return OrderItemResponse(
+      orderDetailId: json['orderDetailId'] as int? ?? 0,
+      productId: json['productId'] as int? ?? 0,
+      productName: json['productName'] as String? ?? '',
+      productImage: json['productImage'] as String?,
+      quantity: json['quantity'] as int? ?? 0,
+      unitPrice: parseNum(json['unitPrice']),
+      subtotal: parseNum(json['subtotal']),
+      branchName: json['branchName'] as String?,
+      branchId: json['branchId'] as int?,
+    );
+  }
 }
 
 class OrderResponse {
   final int orderId;
   final int userId;
-  final String status;
-  final String paymentMethod;
-  final String? shippingAddress;
+  final String? userFullName;
+  final String? orderDate;
   final double totalAmount;
-  final List<ApiCartItemResponse> items;
-  final String? createdAt;
+  final double discountAmount;
+  final double finalAmount;
+  final String orderStatus;
+  final String shippingAddress;
+  final String paymentMethod;
+  final String paymentStatus;
+  final String? voucherCode;
+  final String? cancelReason;
+  final String? updatedAt;
+  final String? updatedBy;
+  final List<OrderItemResponse> orderItems;
 
   const OrderResponse({
     required this.orderId,
     required this.userId,
-    required this.status,
-    required this.paymentMethod,
-    this.shippingAddress,
+    this.userFullName,
+    this.orderDate,
     required this.totalAmount,
-    required this.items,
-    this.createdAt,
+    required this.discountAmount,
+    required this.finalAmount,
+    required this.orderStatus,
+    required this.shippingAddress,
+    required this.paymentMethod,
+    required this.paymentStatus,
+    this.voucherCode,
+    this.cancelReason,
+    this.updatedAt,
+    this.updatedBy,
+    required this.orderItems,
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
@@ -425,18 +500,26 @@ class OrderResponse {
       return double.tryParse(v.toString()) ?? 0.0;
     }
 
-    final rawItems = json['items'] as List<dynamic>? ?? [];
+    final rawItems = json['orderItems'] as List<dynamic>? ?? [];
     return OrderResponse(
       orderId: json['orderId'] as int? ?? 0,
       userId: json['userId'] as int? ?? 0,
-      status: json['status'] as String? ?? '',
-      paymentMethod: json['paymentMethod'] as String? ?? '',
-      shippingAddress: json['shippingAddress'] as String?,
+      userFullName: json['userFullName'] as String?,
+      orderDate: json['orderDate'] as String?,
       totalAmount: parseNum(json['totalAmount']),
-      items: rawItems
-          .map((e) => ApiCartItemResponse.fromJson(e as Map<String, dynamic>))
+      discountAmount: parseNum(json['discountAmount']),
+      finalAmount: parseNum(json['finalAmount']),
+      orderStatus: json['orderStatus'] as String? ?? 'PENDING',
+      shippingAddress: json['shippingAddress'] as String? ?? '',
+      paymentMethod: json['paymentMethod'] as String? ?? 'COD',
+      paymentStatus: json['paymentStatus'] as String? ?? 'PENDING',
+      voucherCode: json['voucherCode'] as String?,
+      cancelReason: json['cancelReason'] as String?,
+      updatedAt: json['updatedAt'] as String?,
+      updatedBy: json['updatedBy'] as String?,
+      orderItems: rawItems
+          .map((e) => OrderItemResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
-      createdAt: json['createdAt'] as String?,
     );
   }
 }

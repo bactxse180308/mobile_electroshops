@@ -142,7 +142,7 @@ void main() {
     expect(fakeAuth.isAuthenticated, isTrue);
   });
 
-  testWidgets('Tapping Google Login triggers simulation dialog when native login fails', (WidgetTester tester) async {
+  testWidgets('Tapping Google Login shows error SnackBar when native login fails', (WidgetTester tester) async {
     final fakeAuth = FakeAuthProvider();
     await tester.pumpWidget(createTestWidget(fakeAuth));
 
@@ -152,36 +152,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50)); // Advance fake delayed future
     await tester.pumpAndSettle();
 
-    // Verify Google Simulation Dialog is shown
-    expect(find.text(AppStrings.simGoogleTitle), findsOneWidget);
-    expect(find.text(AppStrings.simGoogleInfo), findsOneWidget);
-
-    // Tap Cancel on Simulation Dialog
-    await tester.tap(find.text(AppStrings.cancel));
-    await tester.pumpAndSettle();
-
-    // Dialog should be dismissed
-    expect(find.text(AppStrings.simGoogleTitle), findsNothing);
-  });
-
-  testWidgets('Allows proceeding in Google Simulation Dialog', (WidgetTester tester) async {
-    final fakeAuth = FakeAuthProvider();
-    await tester.pumpWidget(createTestWidget(fakeAuth));
-
-    // Tap Google Login
-    await tester.tap(find.text(AppStrings.googleLogin));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50)); // Advance fake delayed future
-    await tester.pumpAndSettle();
-
-    // Dialog shown, tap Continue/Tiếp tục
-    await tester.tap(find.text(AppStrings.continueText));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50)); // Advance simulation future
-    await tester.pumpAndSettle();
-
-    // Should navigate to Main Screen
-    expect(find.text('Main Screen'), findsOneWidget);
-    expect(fakeAuth.isAuthenticated, isTrue);
+    // Verify SnackBar with error is shown
+    expect(find.text('${AppStrings.errGoogleLoginFailed}sign_in_failed'), findsOneWidget);
   });
 }
