@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../providers/cart_provider.dart';
-import '../screens/checkout_screen.dart';
 
 class CheckoutBar extends StatelessWidget {
   final CartProvider cart;
@@ -29,10 +29,7 @@ class CheckoutBar extends StatelessWidget {
       disabled: count == 0,
       onPressed: count == 0
           ? null
-          : () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-              ),
+          : () => Navigator.pushNamed(context, AppRoutes.checkout),
     );
   }
 }
