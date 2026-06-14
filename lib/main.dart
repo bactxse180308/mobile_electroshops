@@ -17,6 +17,7 @@ import 'features/home/screens/main_screen.dart';
 import 'features/product/screens/product_detail_screen.dart';
 import 'features/cart/screens/order_success_screen.dart';
 import 'features/cart/screens/order_detail_screen.dart';
+import 'features/cart/screens/checkout_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +64,7 @@ class ElectroShopApp extends StatelessWidget {
         AppRoutes.forgotPassword: (_) => const ForgotPasswordScreen(),
         AppRoutes.main: (_) => const MainScreen(),
         AppRoutes.orderSuccess: (_) => const OrderSuccessScreen(),
+        AppRoutes.checkout: (_) => const CheckoutScreen(),
       },
       onGenerateRoute: (settings) {
         final name = settings.name ?? '';

@@ -21,7 +21,13 @@ import '../widgets/home_brands_list.dart';
 
 class HomeScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
-  const HomeScreen({super.key, this.onNavigate});
+  final void Function({int? categoryId, String? categoryName, int? brandId, String? brandQuery})? onNavigateToCategories;
+
+  const HomeScreen({
+    super.key,
+    this.onNavigate,
+    this.onNavigateToCategories,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -235,7 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
             const HomeBannerCarousel(bannerImages: AppAssets.homeBanners),
 
             // Categories
-            HomeCategoriesList(categories: _categories),
+            HomeCategoriesList(
+              categories: _categories,
+              onCategoryTap: (id, name) {
+                widget.onNavigateToCategories?.call(
+                  categoryId: id,
+                  categoryName: name,
+                );
+              },
+            ),
 
             // Flash Sale
             HomeFlashSale(
@@ -245,7 +259,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // Brands
-            HomeBrandsList(brands: _brands),
+            HomeBrandsList(
+              brands: _brands,
+              onBrandTap: (id, name) {
+                widget.onNavigateToCategories?.call(
+                  brandId: id,
+                  brandQuery: name,
+                );
+              },
+            ),
 
             // Best Sellers
             if (_bestSellers.isNotEmpty) ...[

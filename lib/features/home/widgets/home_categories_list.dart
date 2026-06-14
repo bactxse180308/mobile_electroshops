@@ -4,15 +4,16 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/models.dart';
-import '../../product/screens/categories_screen.dart';
 import 'home_section_header.dart';
 
 class HomeCategoriesList extends StatelessWidget {
   final List<Category> categories;
+  final void Function(int? categoryId, String? categoryName)? onCategoryTap;
 
   const HomeCategoriesList({
     super.key,
     required this.categories,
+    this.onCategoryTap,
   });
 
   @override
@@ -34,14 +35,9 @@ class HomeCategoriesList extends StatelessWidget {
               final cat = categories[i];
               final isEven = i % 2 == 0;
               return GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CategoriesScreen(
-                      initialCategoryId: int.tryParse(cat.id),
-                      initialCategoryName: cat.name,
-                    ),
-                  ),
+                onTap: () => onCategoryTap?.call(
+                  int.tryParse(cat.id),
+                  cat.name,
                 ),
                 child: SizedBox(
                   width: 64,

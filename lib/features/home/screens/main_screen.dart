@@ -17,13 +17,50 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
 
+  // Filter state cho CategoriesScreen khi navigate từ Home
+  int? _filterCategoryId;
+  String? _filterCategoryName;
+  int? _filterBrandId;
+  String? _filterBrandQuery;
+  // Key thay đổi mỗi khi filter thay đổi → buộc CategoriesScreen rebuild
+  int _categoriesKey = 0;
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
   }
 
-  void _onTabTap(int index) => setState(() => _currentIndex = index);
+  void _onTabTap(int index) {
+    if (index != 1) {
+      // Khi người dùng tự nhấn tab Categories → xóa filter (hiển thị tất cả)
+      setState(() {
+        _currentIndex = index;
+        _filterCategoryId = null;
+        _filterCategoryName = null;
+        _filterBrandId = null;
+        _filterBrandQuery = null;
+      });
+    } else {
+      setState(() => _currentIndex = index);
+    }
+  }
+
+  void _navigateToCategories({
+    int? categoryId,
+    String? categoryName,
+    int? brandId,
+    String? brandQuery,
+  }) {
+    setState(() {
+      _currentIndex = 1;
+      _filterCategoryId = categoryId;
+      _filterCategoryName = categoryName;
+      _filterBrandId = brandId;
+      _filterBrandQuery = brandQuery;
+      _categoriesKey++; // Force rebuild với filter mới
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +68,21 @@ class _MainScreenState extends State<MainScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          HomeScreen(onNavigate: _onTabTap),
-          const CategoriesScreen(),
+          HomeScreen(
+            onNavigate: (index) {
+              // Được gọi bởi callback thông thường (onNavigate(1))
+              // Xử lý ở _onTabTap
+              _onTabTap(index);
+            },
+            onNavigateToCategories: _navigateToCategories,
+          ),
+          CategoriesScreen(
+            key: ValueKey(_categoriesKey),
+            initialCategoryId: _filterCategoryId,
+            initialCategoryName: _filterCategoryName,
+            initialBrandId: _filterBrandId,
+            initialQuery: _filterBrandQuery,
+          ),
           CartScreen(onNavigate: _onTabTap),
           const NotificationsScreen(),
           const ProfileScreen(),

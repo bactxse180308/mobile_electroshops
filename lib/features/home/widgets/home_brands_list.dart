@@ -4,15 +4,16 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/models.dart';
-import '../../product/screens/categories_screen.dart';
 import 'home_section_header.dart';
 
 class HomeBrandsList extends StatelessWidget {
   final List<Brand> brands;
+  final void Function(int? brandId, String? brandName)? onBrandTap;
 
   const HomeBrandsList({
     super.key,
     required this.brands,
+    this.onBrandTap,
   });
 
   @override
@@ -33,14 +34,9 @@ class HomeBrandsList extends StatelessWidget {
             itemBuilder: (context, i) {
               final b = brands[i];
               return GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CategoriesScreen(
-                      initialBrandId: int.tryParse(b.id),
-                      initialQuery: b.name,
-                    ),
-                  ),
+                onTap: () => onBrandTap?.call(
+                  int.tryParse(b.id),
+                  b.name,
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
