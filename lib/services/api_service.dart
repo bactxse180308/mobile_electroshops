@@ -259,7 +259,49 @@ class ApiService {
   Future<void> clearCart(int userId) async {
     await _authDelete('/cart/$userId');
   }
+
+  // ── Order API ─────────────────────────────────────────────────────────────
+
+  /// Tạo đơn hàng mới
+  Future<OrderResponse> createOrder(
+    CreateOrderRequest request,
+    String token,
+    int userId,
+  ) async {
+    final j = await _authPost('/orders', request.toJson());
+    return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  /// Lấy danh sách đơn hàng của user
+  Future<ApiPage<OrderResponse>> getMyOrders(
+    int userId,
+    String token, {
+    int page = 0,
+    int size = 10,
+  }) async {
+    final j = await _authGet('/orders/user/$userId', params: {
+      'page': '$page',
+      'size': '$size',
+    });
+    return ApiPage.fromJson(
+      j['data'] as Map<String, dynamic>,
+      (e) => OrderResponse.fromJson(e as Map<String, dynamic>),
+    );
+
+  }
+
+  /// Lấy chi tiết đơn hàng theo ID
+  Future<OrderResponse> getOrderById(int id, String token) async {
+    final j = await _authGet('/orders/$id');
+    return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
+  }
+
+  /// Hủy đơn hàng
+  Future<void> cancelOrder(int id, String token) async {
+    await _authPatch('/orders/$id/cancel');
+  }
 }
+
 
 // ── Exception ────────────────────────────────────────────────────────────────
 class ApiException implements Exception {

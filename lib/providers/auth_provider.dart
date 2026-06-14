@@ -135,29 +135,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loginWithGoogleSimulation(String email, String name) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      try {
-        await _authService.register(name, email, '0999999999', 'google_simulation_pwd_123');
-        await _authService.sendOtp(email);
-      } catch (_) {
-        // Ignored if user already exists
-      }
-      final data = await _authService.login(email, 'google_simulation_pwd_123');
-      await _saveAuthData(data);
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      throw Exception(_errorMessage);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_id');

@@ -372,3 +372,73 @@ class ApiCartResponse {
   }
 }
 
+// ─────────────────────────────────────────────
+// Order Models
+// ─────────────────────────────────────────────
+
+class CreateOrderRequest {
+  final int userId;
+  final String paymentMethod;
+  final String shippingAddress;
+  final List<int> cartItemIds;
+
+  const CreateOrderRequest({
+    required this.userId,
+    required this.paymentMethod,
+    required this.shippingAddress,
+    required this.cartItemIds,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'userId': userId,
+    'paymentMethod': paymentMethod,
+    'shippingAddress': shippingAddress,
+    'cartItemIds': cartItemIds,
+  };
+}
+
+class OrderResponse {
+  final int orderId;
+  final int userId;
+  final String status;
+  final String paymentMethod;
+  final String? shippingAddress;
+  final double totalAmount;
+  final List<ApiCartItemResponse> items;
+  final String? createdAt;
+
+  const OrderResponse({
+    required this.orderId,
+    required this.userId,
+    required this.status,
+    required this.paymentMethod,
+    this.shippingAddress,
+    required this.totalAmount,
+    required this.items,
+    this.createdAt,
+  });
+
+  factory OrderResponse.fromJson(Map<String, dynamic> json) {
+    double parseNum(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return OrderResponse(
+      orderId: json['orderId'] as int? ?? 0,
+      userId: json['userId'] as int? ?? 0,
+      status: json['status'] as String? ?? '',
+      paymentMethod: json['paymentMethod'] as String? ?? '',
+      shippingAddress: json['shippingAddress'] as String?,
+      totalAmount: parseNum(json['totalAmount']),
+      items: rawItems
+          .map((e) => ApiCartItemResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      createdAt: json['createdAt'] as String?,
+    );
+  }
+}
+
+
