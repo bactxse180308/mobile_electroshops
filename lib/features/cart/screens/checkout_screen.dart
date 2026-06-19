@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/order_provider.dart';
+import '../../../providers/payment_provider.dart';
 import '../../../models/api_models.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../core/widgets/app_button.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/top_app_bar.dart';
 import '../widgets/checkout_item_row.dart';
 import '../widgets/checkout_section.dart';
 import 'order_success_screen.dart';
+import 'vnpay_payment_screen.dart';
 
 final _methods = [
   (id: 'cod', label: AppStrings.methodCod, sub: AppStrings.methodCodSub, emoji: '💵'),
@@ -86,19 +88,88 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final order = await orderProvider.createOrder(
         orderRequest,
-        auth.accessToken!,
         auth.userId!,
       );
 
       if (order != null) {
         // Tải lại giỏ hàng từ BE
         await cart.loadCart(auth.userId!);
-
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => OrderSuccessScreen(order: order)),
-        );
+
+        if (_pm == 'vnpay') {
+          final paymentProvider = context.read<PaymentProvider>();
+          final url = await paymentProvider.createVNPayUrl(order.orderId);
+          if (!mounted) return;
+
+          if (url != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VNPayPaymentScreen(
+                  order: order,
+                  paymentUrl: url,
+                  token: auth.accessToken!,
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(paymentProvider.error ?? 'Không thể tạo link thanh toán'),
+                backgroundColor: AppColors.destructive,
+              ),
+            );
+          }
+        } else if (_pm == 'bank') {
+          // Hiển thị thông tin chuyển khoản
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              title: const Text('Chuyển khoản ngân hàng'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Vui lòng chuyển khoản đến:', style: TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+                  const SizedBox(height: 12),
+                  _BankInfoRow(label: 'Ngân hàng', value: 'Vietcombank'),
+                  _BankInfoRow(label: 'Số tài khoản', value: '1234567890'),
+                  _BankInfoRow(label: 'Chủ tài khoản', value: 'ELECTRO SHOP'),
+                  _BankInfoRow(label: 'Số tiền', value: formatVND(cart.totalPayable.round())),
+                  _BankInfoRow(label: 'Nội dung', value: 'DH${order.orderId}'),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Đơn hàng sẽ được xử lý sau khi xác nhận thanh toán.',
+                    style: TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => OrderSuccessScreen(order: order)),
+                    );
+                  },
+                  child: const Text('Đã chuyển khoản'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // COD
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => OrderSuccessScreen(order: order)),
+          );
+        }
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -468,6 +539,27 @@ class _Row extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BankInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _BankInfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+        ],
+      ),
     );
   }
 }
