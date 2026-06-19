@@ -384,13 +384,12 @@ class ApiService {
 
   // ── Order API ─────────────────────────────────────────────────────────────
 
-  /// Tạo đơn hàng mới
+  /// Tạo đơn hàng mới — BE: POST /orders?userId={userId}
   Future<OrderResponse> createOrder(
     CreateOrderRequest request,
-    String token,
     int userId,
   ) async {
-    final j = await _authPost('/orders', request.toJson());
+    final j = await _authPost('/orders', request.toJson(), params: {'userId': userId.toString()});
     return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
   }
 
@@ -421,6 +420,22 @@ class ApiService {
   /// Hủy đơn hàng
   Future<void> cancelOrder(int id, String token) async {
     await _authPatch('/orders/$id/cancel');
+  }
+
+  // ── Payment ───────────────────────────────────────────────────────────────
+
+  /// Tạo VNPay payment URL — BE: POST /payments/vnpay/create
+  Future<String> createVNPayUrl(int orderId) async {
+    final j = await _authPost(
+      '/payments/vnpay/create',
+      {},
+      params: {
+        'orderId': orderId.toString(),
+        'type': 'NORMAL',
+      },
+    );
+    final data = j['data'] as Map<String, dynamic>;
+    return data['paymentUrl'] as String;
   }
 }
 

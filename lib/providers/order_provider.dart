@@ -29,7 +29,6 @@ class OrderProvider extends ChangeNotifier {
 
   Future<OrderResponse?> createOrder(
     CreateOrderRequest request,
-    String token,
     int userId,
   ) async {
     _isLoading = true;
@@ -37,7 +36,7 @@ class OrderProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final order = await _api.createOrder(request, token, userId);
+      final order = await _api.createOrder(request, userId);
       _currentOrder = order;
       _orders = [order, ..._orders];
       return order;

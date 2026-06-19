@@ -7,6 +7,7 @@ import 'providers/notification_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/order_provider.dart';
+import 'providers/payment_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_routes.dart';
 import 'features/home/screens/splash_screen.dart';
@@ -20,6 +21,8 @@ import 'features/product/screens/product_detail_screen.dart';
 import 'features/cart/screens/order_success_screen.dart';
 import 'features/cart/screens/order_detail_screen.dart';
 import 'features/cart/screens/checkout_screen.dart';
+import 'features/cart/screens/vnpay_payment_screen.dart';
+import 'features/cart/screens/vnpay_result_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +38,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProxyProvider<CartProvider, AuthProvider>(
           create: (_) => AuthProvider(),
           update: (_, cartProvider, authProvider) {
@@ -81,6 +85,27 @@ class ElectroShopApp extends StatelessWidget {
         }
         if (name == AppRoutes.mainCart) {
           return MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 2));
+        }
+        if (name == AppRoutes.vnpayPayment) {
+          final args = settings.arguments as VNPayPaymentScreenArgs;
+          return MaterialPageRoute(
+            builder: (_) => VNPayPaymentScreen(
+              order: args.order,
+              paymentUrl: args.paymentUrl,
+              token: args.token,
+            ),
+          );
+        }
+        if (name == AppRoutes.vnpayResult) {
+          final args = settings.arguments as VNPayResultScreenArgs;
+          return MaterialPageRoute(
+            builder: (_) => VNPayResultScreen(
+              isSuccess: args.isSuccess,
+              order: args.order,
+              result: args.result,
+              syncWarning: args.syncWarning,
+            ),
+          );
         }
         return null;
       },

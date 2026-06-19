@@ -131,8 +131,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     // Parse combined shipping address info (Name | Phone | Address)
     String recipientName = order.userFullName ?? AppStrings.mockUserName;
     String recipientPhone = AppStrings.mockUserPhone;
-    String actualAddress = order.shippingAddress;
-    final addressParts = order.shippingAddress.split(' | ');
+    String actualAddress = order.shippingAddress ?? '';
+    final addressParts = (order.shippingAddress ?? '').split(' | ');
     if (addressParts.length >= 3) {
       recipientName = addressParts[0];
       recipientPhone = addressParts[1];

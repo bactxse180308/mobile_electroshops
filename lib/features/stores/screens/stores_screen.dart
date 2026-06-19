@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/map_utils.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/top_app_bar.dart';
 import '../../../data/seed_data.dart';
@@ -195,19 +196,20 @@ class _StoresScreenState extends State<StoresScreen> {
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [Icon(Icons.phone_outlined, size: 14), SizedBox(width: 4), Text(AppStrings.callButton)],
                                           ),
-                                          onPressed: () {},
+                                          onPressed: () => openDialer(s.phone),
                                         ),
                                       ),
                                       const SizedBox(width: AppSizes.p8),
                                       Expanded(
                                         child: AppButton(
                                           size: AppButtonSize.sm,
+                                          variant: AppButtonVariant.gradient,
                                           fullWidth: true,
                                           child: const Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [Icon(Icons.near_me_outlined, size: 14), SizedBox(width: 4), Text(AppStrings.directionsButton)],
+                                            children: [Icon(Icons.near_me_outlined, size: 14, color: Colors.white), SizedBox(width: 4), Text(AppStrings.directionsButton, style: TextStyle(color: Colors.white))],
                                           ),
-                                          onPressed: () {},
+                                          onPressed: () => openGoogleMaps(s.lat, s.lng, s.name),
                                         ),
                                       ),
                                     ],

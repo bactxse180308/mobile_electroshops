@@ -8,6 +8,8 @@ class AppRoutes {
   static const String main = '/main';
   static const String orderSuccess = '/order-success';
   static const String checkout = '/checkout';
+  static const String vnpayPayment = '/payment/vnpay';
+  static const String vnpayResult = '/payment/vnpay/result';
   static const String orderHistory = '/orders';
   static const String storeMap = '/store-map';
   
