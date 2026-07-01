@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_electroshops/core/constants/app_strings.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/cart_provider.dart';
 import 'providers/notification_provider.dart';
-import 'providers/chat_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/payment_provider.dart';
+import 'providers/chat_provider.dart';
+import 'providers/admin_chat_provider.dart';
+import 'features/chat/services/chat_api.dart';
+import 'features/chat/services/admin_chat_api.dart';
+import 'features/chat/services/chat_socket.dart';
+import 'core/utils/api_config.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_routes.dart';
 import 'features/home/screens/splash_screen.dart';
@@ -24,6 +30,11 @@ import 'features/cart/screens/checkout_screen.dart';
 import 'features/cart/screens/vnpay_payment_screen.dart';
 import 'features/cart/screens/vnpay_result_screen.dart';
 
+Future<String?> _readAccessToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('access_token');
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -36,9 +47,20 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ChatProvider(
+            api: ChatApi(),
+            socket: ChatSocket(wsUrl: ApiConfig.wsUrl, tokenProvider: _readAccessToken),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AdminChatProvider(
+            api: AdminChatApi(),
+            socket: ChatSocket(wsUrl: ApiConfig.wsUrl, tokenProvider: _readAccessToken),
+          ),
+        ),
         ChangeNotifierProxyProvider<CartProvider, AuthProvider>(
           create: (_) => AuthProvider(),
           update: (_, cartProvider, authProvider) {

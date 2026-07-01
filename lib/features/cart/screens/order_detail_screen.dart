@@ -306,17 +306,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             padding: const EdgeInsets.fromLTRB(AppSizes.p12, 0, AppSizes.p12, AppSizes.p20),
             child: Row(
               children: [
-                Expanded(
-                  child: AppButton(
-                    label: AppStrings.contact,
-                    variant: AppButtonVariant.secondary,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: AppSizes.p6), Text(AppStrings.contact)],
+                // Admin không chat với vai trò khách → ẩn nút liên hệ cho ADMIN.
+                if (context.watch<AuthProvider>().role != 'ADMIN')
+                  Expanded(
+                    child: AppButton(
+                      label: AppStrings.contact,
+                      variant: AppButtonVariant.secondary,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: AppSizes.p6), Text(AppStrings.contact)],
+                      ),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
                     ),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
                   ),
-                ),
                 if (order.orderStatus.toUpperCase() == 'PENDING') ...[
                   const SizedBox(width: AppSizes.p8),
                   Expanded(

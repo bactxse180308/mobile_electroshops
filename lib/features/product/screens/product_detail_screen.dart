@@ -301,21 +301,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(AppSizes.r12)),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.primary),
-                        Text(AppStrings.chat, style: TextStyle(fontSize: 9, color: AppColors.secondary)),
-                      ],
+                // Admin không chat với vai trò khách → ẩn nút chat cho ADMIN.
+                if (context.watch<AuthProvider>().role != 'ADMIN') ...[
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(attachProduct: p))),
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(AppSizes.r12)),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.primary),
+                          Text(AppStrings.chat, style: TextStyle(fontSize: 9, color: AppColors.secondary)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSizes.p8),
+                  const SizedBox(width: AppSizes.p8),
+                ],
                 Expanded(
                   child: AppButton(
                     label: AppStrings.addToCart,

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../core/widgets/bottom_nav_bar.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
+import '../../../providers/chat_provider.dart';
+import '../../../providers/admin_chat_provider.dart';
 import 'home_screen.dart';
 import '../../product/screens/categories_screen.dart';
 import '../../cart/screens/cart_screen.dart';
@@ -36,6 +38,12 @@ class _MainScreenState extends State<MainScreen> {
       final auth = context.read<AuthProvider>();
       if (auth.isAuthenticated) {
         context.read<NotificationProvider>().fetchNotifications();
+        // Kết nối chat realtime để đếm tin chưa đọc (badge) theo vai trò.
+        if (auth.role == 'ADMIN') {
+          context.read<AdminChatProvider>().start();
+        } else {
+          context.read<ChatProvider>().start();
+        }
       }
     });
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/chat_provider.dart';
+import '../../../providers/admin_chat_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
@@ -158,6 +160,9 @@ class ProfileScreen extends StatelessWidget {
                   iconColor: AppColors.destructive,
                   labelColor: AppColors.destructive,
                   onTap: () async {
+                    // Ngắt socket chat & xoá state trước khi đăng xuất.
+                    context.read<ChatProvider>().reset();
+                    context.read<AdminChatProvider>().reset();
                     await context.read<AuthProvider>().logout();
                     if (context.mounted) {
                       Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);

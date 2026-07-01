@@ -6,15 +6,19 @@ import '../../../../core/constants/app_sizes.dart';
 
 class HomeHeader extends StatelessWidget {
   final int cartCount;
+  final int chatCount;
   final VoidCallback onNotificationTap;
   final VoidCallback onCartTap;
+  final VoidCallback onChatTap;
   final VoidCallback onSearchTap;
 
   const HomeHeader({
     super.key,
     required this.cartCount,
+    required this.chatCount,
     required this.onNotificationTap,
     required this.onCartTap,
+    required this.onChatTap,
     required this.onSearchTap,
   });
 
@@ -40,6 +44,36 @@ class HomeHeader extends StatelessWidget {
               ),
               const Icon(Icons.expand_more, size: 16, color: Colors.white),
               const Spacer(),
+              IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 22),
+                    if (chatCount > 0)
+                      Positioned(
+                        top: -4,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            gradient: AppColors.flashGradient,
+                            borderRadius: BorderRadius.circular(AppSizes.r8),
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16),
+                          child: Text(
+                            chatCount > 99 ? '99+' : '$chatCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: onChatTap,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: AppSizes.p4),
               IconButton(
                 icon: Stack(
                   clipBehavior: Clip.none,

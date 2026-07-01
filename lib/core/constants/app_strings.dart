@@ -257,6 +257,14 @@ class AppStrings {
   static const String quickReplyShipping = 'Phí ship?';
   static const String quickReplyWarranty = 'Bảo hành?';
   static const String quickReplyReturn = 'Đổi trả';
+  static const String chatStatusSent = 'Đã gửi';
+  static const String chatStatusRead = 'Đã đọc';
+  static const String chatEmpty = 'Chào bạn 👋 Hãy gửi tin nhắn để được ElectroShop hỗ trợ.';
+  static const String chatLoadError = 'Không thể tải tin nhắn. Vui lòng thử lại.';
+  static const String chatSendError = 'Gửi tin nhắn thất bại. Vui lòng thử lại.';
+  static const String adminChatTitle = 'Tin nhắn khách hàng';
+  static const String adminEmptyConversations = 'Chưa có hội thoại nào';
+  static const String adminCustomerFallback = 'Khách hàng';
   static const String cartLoginPrompt = 'Đăng nhập để xem và quản lý giỏ hàng của bạn.';
   static const String cartEmptyPrompt = 'Khám phá sản phẩm và thêm vào giỏ của bạn.';
   static const String productUnit = 'sản phẩm';

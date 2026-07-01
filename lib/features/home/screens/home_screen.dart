@@ -10,8 +10,13 @@ import '../../../core/widgets/shimmer_box.dart';
 import '../../../models/models.dart';
 import '../../../services/api_service.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/chat_provider.dart';
+import '../../../providers/admin_chat_provider.dart';
 import '../../product/widgets/product_card.dart';
 import '../../product/screens/product_detail_screen.dart';
+import '../../chat/screens/chat_screen.dart';
+import '../../chat/screens/admin_conversations_screen.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_banner_carousel.dart';
 import '../widgets/home_section_header.dart';
@@ -109,12 +114,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final cartCount = context.watch<CartProvider>().totalCount;
+    final isAdmin = context.watch<AuthProvider>().role == 'ADMIN';
+    final chatCount = isAdmin
+        ? context.watch<AdminChatProvider>().totalUnread
+        : context.watch<ChatProvider>().unreadCount;
     return Column(
       children: [
         HomeHeader(
           cartCount: cartCount,
+          chatCount: chatCount,
           onNotificationTap: () => widget.onNavigate?.call(3),
           onCartTap: () => widget.onNavigate?.call(2),
+          onChatTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => isAdmin
+                  ? const AdminConversationsScreen()
+                  : const ChatScreen(),
+            ),
+          ),
           onSearchTap: () => widget.onNavigate?.call(1),
         ),
         Expanded(
