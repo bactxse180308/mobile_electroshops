@@ -59,10 +59,13 @@ class _VNPayPaymentScreenState extends State<VNPayPaymentScreen> {
           },
           onNavigationRequest: (request) {
             final handled = _handleNavigation(request.url);
-            return handled ? NavigationDecision.prevent : NavigationDecision.navigate;
+            return handled
+                ? NavigationDecision.prevent
+                : NavigationDecision.navigate;
           },
           onWebResourceError: (error) {
-            debugPrint('[VNPAY] WebView error: ${error.errorCode} ${error.description}');
+            debugPrint(
+                '[VNPAY] WebView error: ${error.errorCode} ${error.description}');
           },
         ),
       )
@@ -83,6 +86,7 @@ class _VNPayPaymentScreenState extends State<VNPayPaymentScreen> {
   Future<void> _finishPayment(VNPayReturnParams result) async {
     OrderResponse? refreshedOrder;
     String? syncWarning;
+    final orderProvider = context.read<OrderProvider>();
 
     try {
       await _vnPayService.confirmReturn(
@@ -90,15 +94,16 @@ class _VNPayPaymentScreenState extends State<VNPayPaymentScreen> {
         widget.token,
       );
     } catch (e) {
-      syncWarning = 'Thanh toan da hoan tat nhung dong bo trang thai don hang that bai. Vui long tai lai don hang.';
+      syncWarning =
+          'Thanh toan da hoan tat nhung dong bo trang thai don hang that bai. Vui long tai lai don hang.';
       debugPrint('[VNPAY] Backend return synchronization failed: $e');
     }
 
     try {
-      refreshedOrder = await context.read<OrderProvider>().fetchOrderById(
-            widget.order.orderId,
-            widget.token,
-          );
+      refreshedOrder = await orderProvider.fetchOrderById(
+        widget.order.orderId,
+        widget.token,
+      );
     } catch (e) {
       debugPrint('[VNPAY] Failed to refresh order after return: $e');
     }
@@ -122,7 +127,8 @@ class _VNPayPaymentScreenState extends State<VNPayPaymentScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Huy thanh toan VNPay?'),
-        content: const Text('Giao dich chua hoan tat. Ban co muon thoat man hinh thanh toan?'),
+        content: const Text(
+            'Giao dich chua hoan tat. Ban co muon thoat man hinh thanh toan?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -140,8 +146,15 @@ class _VNPayPaymentScreenState extends State<VNPayPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _confirmExit,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldExit = await _confirmExit();
+        if (shouldExit && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
       child: Scaffold(
         appBar: const ElectroAppBar(title: 'Thanh toan VNPay'),
         body: Stack(

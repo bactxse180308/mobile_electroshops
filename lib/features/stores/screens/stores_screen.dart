@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/map_utils.dart';
-import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/top_app_bar.dart';
 import '../../../data/seed_data.dart';
+import '../../../models/models.dart';
+import '../widgets/store_bottom_sheet.dart';
+import '../widgets/store_map_view.dart';
 
 class StoresScreen extends StatefulWidget {
   const StoresScreen({super.key});
@@ -16,255 +20,354 @@ class StoresScreen extends StatefulWidget {
 }
 
 class _StoresScreenState extends State<StoresScreen> {
-  String _selectedId = stores[0].id;
+  static const _allCities = 'Tất cả';
+  static const _cityFilters = [_allCities, 'TP.HCM', 'Hà Nội'];
+  static const _defaultCameraTarget = LatLng(10.7769, 106.7009);
+
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _listController = ScrollController();
+  final Map<String, String> _symbolStoreIds = {};
+
+  MapLibreMapController? _mapController;
+  LatLng? _userLocation;
+  String _selectedId = stores.first.id;
+  String _cityFilter = _allCities;
+  String _query = '';
+  String? _locationMessage;
+  bool _isLocating = true;
+  bool _isMapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserLocation();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _listController.dispose();
+    _mapController?.onSymbolTapped.remove(_onSymbolTapped);
+    _mapController = null;
+    super.dispose();
+  }
+
+  List<Store> get _visibleStores {
+    final query = _query.trim().toLowerCase();
+    final result = stores.where((store) {
+      final matchesCity =
+          _cityFilter == _allCities || store.city == _cityFilter;
+      final searchable =
+          '${store.name} ${store.district} ${store.city} ${store.address}'
+              .toLowerCase();
+      return matchesCity && (query.isEmpty || searchable.contains(query));
+    }).toList();
+
+    final location = _userLocation;
+    if (location != null) {
+      result.sort((a, b) {
+        final distanceA = _distanceFromUser(a);
+        final distanceB = _distanceFromUser(b);
+        return distanceA.compareTo(distanceB);
+      });
+    }
+    return result;
+  }
+
+  Store? get _selectedStore {
+    final visibleStores = _visibleStores;
+    if (visibleStores.isEmpty) return null;
+    return visibleStores.firstWhere(
+      (store) => store.id == _selectedId,
+      orElse: () => visibleStores.first,
+    );
+  }
+
+  Future<void> _loadUserLocation() async {
+    setState(() {
+      _isLocating = true;
+      _locationMessage = null;
+    });
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _setLocationUnavailable(
+          'Dịch vụ vị trí đang tắt. Vẫn hiển thị danh sách cửa hàng.',
+        );
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _setLocationUnavailable(
+          'Bạn chưa cấp quyền vị trí. Cửa hàng vẫn hiển thị bình thường.',
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      final location = LatLng(position.latitude, position.longitude);
+
+      if (!mounted) return;
+      setState(() {
+        _userLocation = location;
+        _isLocating = false;
+        _ensureSelectedVisible();
+      });
+
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(location, 13),
+      );
+      _refreshMarkersSoon();
+    } catch (_) {
+      _setLocationUnavailable(
+        'Không thể lấy vị trí hiện tại. Vui lòng thử lại sau.',
+      );
+    }
+  }
+
+  void _setLocationUnavailable(String message) {
+    if (!mounted) return;
+    setState(() {
+      _locationMessage = message;
+      _isLocating = false;
+    });
+    _refreshMarkersSoon();
+  }
+
+  void _onMapCreated(MapLibreMapController controller) {
+    _mapController = controller;
+    controller.onSymbolTapped.add(_onSymbolTapped);
+  }
+
+  void _onStyleLoaded() {
+    setState(() => _isMapReady = true);
+    _refreshMarkersSoon();
+  }
+
+  void _onSymbolTapped(Symbol symbol) {
+    final storeId = _symbolStoreIds[symbol.id];
+    if (storeId == null) return;
+
+    final visibleStores = _visibleStores;
+    if (visibleStores.isEmpty) return;
+
+    final store = visibleStores.firstWhere(
+      (item) => item.id == storeId,
+      orElse: () => visibleStores.first,
+    );
+    _selectStore(store, scrollToCard: true);
+  }
+
+  void _setSearchQuery(String value) {
+    setState(() {
+      _query = value;
+      _ensureSelectedVisible();
+    });
+    _refreshMarkersSoon();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _setSearchQuery('');
+  }
+
+  void _setCityFilter(String city) {
+    setState(() {
+      _cityFilter = city;
+      _ensureSelectedVisible();
+    });
+    _refreshMarkersSoon();
+
+    final store = _selectedStore;
+    if (store != null) _moveCameraToStore(store);
+  }
+
+  void _ensureSelectedVisible() {
+    final visibleStores = _visibleStores;
+    if (visibleStores.isEmpty) return;
+    if (!visibleStores.any((store) => store.id == _selectedId)) {
+      _selectedId = visibleStores.first.id;
+    }
+  }
+
+  void _selectStore(Store store, {bool scrollToCard = false}) {
+    setState(() => _selectedId = store.id);
+    _moveCameraToStore(store);
+    if (scrollToCard) _scrollToStore(store);
+    _refreshMarkersSoon();
+  }
+
+  Future<void> _moveCameraToStore(Store store) async {
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(store.lat, store.lng), 15),
+    );
+  }
+
+  Future<void> _focusUserLocation() async {
+    final location = _userLocation;
+    if (location == null) {
+      await _loadUserLocation();
+      if (!mounted) return;
+      if (_userLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_locationMessage ?? 'Chưa có vị trí hiện tại.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(location, 14),
+    );
+  }
+
+  void _scrollToStore(Store store) {
+    final index = _visibleStores.indexWhere((item) => item.id == store.id);
+    if (index < 0 || !_listController.hasClients) return;
+    _listController.animateTo(
+      index * 138,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _refreshMarkersSoon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshMarkers();
+    });
+  }
+
+  Future<void> _refreshMarkers() async {
+    final controller = _mapController;
+    if (controller == null || !_isMapReady) return;
+
+    await controller.clearSymbols();
+    _symbolStoreIds.clear();
+
+    for (final store in _visibleStores) {
+      final active = store.id == _selectedId;
+      final symbol = await controller.addSymbol(
+        SymbolOptions(
+          geometry: LatLng(store.lat, store.lng),
+          textField: '●',
+          textSize: active ? 34 : 26,
+          textColor: active ? '#2563EB' : '#1E293B',
+          textHaloColor: '#FFFFFF',
+          textHaloWidth: active ? 2.6 : 2,
+        ),
+      );
+      _symbolStoreIds[symbol.id] = store.id;
+    }
+  }
+
+  Future<void> _callStore(Store store) async {
+    try {
+      await openDialer(store.phone);
+    } catch (_) {
+      if (!mounted) return;
+      _showSnackBar('Không thể mở trình gọi điện.');
+    }
+  }
+
+  Future<void> _openDirections(Store store) async {
+    try {
+      await openGoogleMaps(store.lat, store.lng, store.name);
+    } catch (_) {
+      if (!mounted) return;
+      _showSnackBar('Không thể mở Google Maps.');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  String _distanceLabel(Store store) {
+    if (_userLocation == null) return store.city;
+
+    final distance = _distanceFromUser(store);
+    if (distance < 1) return '${(distance * 1000).round()} m';
+    return '${distance.toStringAsFixed(distance < 10 ? 1 : 0)} km';
+  }
+
+  double _distanceFromUser(Store store) {
+    final location = _userLocation;
+    if (location == null) return double.infinity;
+    return calculateDistanceKm(
+      location.latitude,
+      location.longitude,
+      store.lat,
+      store.lng,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final visibleStores = _visibleStores;
+
     return Scaffold(
       appBar: ElectroAppBar(
         title: AppStrings.ourStores,
         right: IconButton(
-          icon: const Icon(Icons.search, size: 22, color: AppColors.secondary),
-          onPressed: () {},
+          icon: const Icon(
+            Icons.my_location_outlined,
+            size: AppSizes.iconLg,
+            color: AppColors.secondary,
+          ),
+          onPressed: _focusUserLocation,
         ),
       ),
       body: Column(
         children: [
-          // Map visualization
           Expanded(
             flex: 6,
-            child: Stack(
-              children: [
-                // Stylized map background
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.searchBgGradient,
-                  ),
-                  child: CustomPaint(
-                    painter: _MapPainter(),
-                    child: Container(),
-                  ),
-                ),
-                // Store pins
-                ...stores.asMap().entries.map((e) {
-                  final i = e.key;
-                  final s = e.value;
-                  final active = s.id == _selectedId;
-                  final positions = [
-                    const Offset(0.25, 0.25),
-                    const Offset(0.65, 0.45),
-                    const Offset(0.40, 0.65),
-                    const Offset(0.75, 0.75),
-                  ];
-                  final pos = positions[i];
-                  return Positioned(
-                    left: pos.dx * MediaQuery.of(context).size.width - 18,
-                    top: pos.dy * (MediaQuery.of(context).size.height * 0.38) - 36,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedId = s.id),
-                      child: Column(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            transform: active ? (Matrix4.identity()..scale(1.25, 1.25)) : Matrix4.identity(),
-                            transformAlignment: Alignment.center,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                if (active)
-                                  Container(
-                                    width: 40, height: 40,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppColors.primary.withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                Container(
-                                  width: AppSizes.btnHeightSm, height: AppSizes.btnHeightSm,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: active ? AppColors.primary : AppColors.card,
-                                    boxShadow: AppShadows.lift,
-                                  ),
-                                  child: Icon(
-                                    active ? Icons.location_on : Icons.location_on_outlined,
-                                    size: AppSizes.iconMd,
-                                    color: active ? Colors.white : AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            width: 0, height: 0,
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: const BorderSide(width: AppSizes.p6, color: Colors.transparent),
-                                right: const BorderSide(width: AppSizes.p6, color: Colors.transparent),
-                                top: BorderSide(width: AppSizes.p8, color: active ? AppColors.primary : AppColors.card),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ],
+            child: StoreMapView(
+              defaultCameraTarget: _defaultCameraTarget,
+              userLocation: _userLocation,
+              isMapReady: _isMapReady,
+              isLocating: _isLocating,
+              locationMessage: _locationMessage,
+              onMapCreated: _onMapCreated,
+              onStyleLoaded: _onStyleLoaded,
             ),
           ),
-
-          // Bottom sheet
           Expanded(
             flex: 5,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [BoxShadow(color: Color(0x20000000), blurRadius: 20, offset: Offset(0, -4))],
-              ),
-              child: Column(
-                children: [
-                  Container(margin: const EdgeInsets.only(top: AppSizes.p10), width: 40, height: AppSizes.p4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSizes.p16, AppSizes.p8, AppSizes.p16, AppSizes.p8),
-                    child: Text('${stores.length} ${AppStrings.storesCount}', style: AppTextStyles.h3),
-                  ),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
-                      itemCount: stores.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.p10),
-                      itemBuilder: (context, i) {
-                        final s = stores[i];
-                        final active = s.id == _selectedId;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedId = s.id),
-                          child: Container(
-                            padding: const EdgeInsets.all(AppSizes.p12),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: active ? AppColors.primary : AppColors.border, width: active ? 1.5 : 1),
-                              color: active ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(AppSizes.r12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(child: Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary))),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: AppSizes.p6, vertical: 2),
-                                                decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.r4)),
-                                                child: const Text(AppStrings.openStatus, style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w600)),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(s.address, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                          const SizedBox(height: AppSizes.p4),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.access_time, size: 12, color: AppColors.mutedForeground),
-                                              const SizedBox(width: AppSizes.p4),
-                                              Text(s.hours, style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground)),
-                                              const Text(' · ', style: TextStyle(color: AppColors.mutedForeground)),
-                                              Text(s.distance, style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500)),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (active) ...[
-                                  const SizedBox(height: AppSizes.p10),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: AppButton(
-                                          variant: AppButtonVariant.secondary,
-                                          size: AppButtonSize.sm,
-                                          fullWidth: true,
-                                          child: const Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [Icon(Icons.phone_outlined, size: 14), SizedBox(width: 4), Text(AppStrings.callButton)],
-                                          ),
-                                          onPressed: () => openDialer(s.phone),
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSizes.p8),
-                                      Expanded(
-                                        child: AppButton(
-                                          size: AppButtonSize.sm,
-                                          variant: AppButtonVariant.gradient,
-                                          fullWidth: true,
-                                          child: const Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [Icon(Icons.near_me_outlined, size: 14, color: Colors.white), SizedBox(width: 4), Text(AppStrings.directionsButton, style: TextStyle(color: Colors.white))],
-                                          ),
-                                          onPressed: () => openGoogleMaps(s.lat, s.lng, s.name),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(height: MediaQuery.of(context).padding.bottom),
-                ],
-              ),
+            child: StoreBottomSheet(
+              stores: visibleStores,
+              cities: _cityFilters,
+              selectedCity: _cityFilter,
+              selectedStoreId: _selectedId,
+              query: _query,
+              hasUserLocation: _userLocation != null,
+              searchController: _searchController,
+              listController: _listController,
+              onSearchChanged: _setSearchQuery,
+              onSearchClear: _clearSearch,
+              onCityChanged: _setCityFilter,
+              onStoreTap: _selectStore,
+              onCall: _callStore,
+              onDirections: _openDirections,
+              distanceLabelBuilder: _distanceLabel,
             ),
           ),
         ],
       ),
     );
   }
-}
-
-class _MapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.mapRoadLine.withValues(alpha: 0.3)
-      ..strokeWidth = 0.5
-      ..style = PaintingStyle.stroke;
-
-    for (double x = 0; x < size.width; x += 40) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += 40) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    final roadPaint = Paint()
-      ..color = AppColors.mapRoadActive.withValues(alpha: 0.3)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path1 = Path();
-    path1.moveTo(0, size.height * 0.5);
-    path1.quadraticBezierTo(size.width * 0.5, size.height * 0.35, size.width, size.height * 0.35);
-    canvas.drawPath(path1, roadPaint);
-
-    final path2 = Path();
-    path2.moveTo(size.width * 0.25, 0);
-    path2.quadraticBezierTo(size.width * 0.3, size.height * 0.5, size.width * 0.35, size.height);
-    canvas.drawPath(path2, roadPaint..color = AppColors.mapRoadSuccess.withValues(alpha: 0.25)..strokeWidth = 2);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }

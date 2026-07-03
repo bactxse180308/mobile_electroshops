@@ -25,7 +25,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadOrders(refresh: true));
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _loadOrders(refresh: true));
   }
 
   @override
@@ -36,10 +37,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   void _onScroll() {
-    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 200) {
       final op = context.read<OrderProvider>();
       final auth = context.read<AuthProvider>();
-      if (op.hasMore && !op.isLoadingMore && !op.isLoading && auth.accessToken != null && auth.userId != null) {
+      if (op.hasMore &&
+          !op.isLoadingMore &&
+          !op.isLoading &&
+          auth.accessToken != null &&
+          auth.userId != null) {
         op.fetchMyOrders(auth.accessToken!, auth.userId!);
       }
     }
@@ -48,7 +54,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   Future<void> _loadOrders({bool refresh = false}) async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken != null && auth.userId != null) {
-      await context.read<OrderProvider>().fetchMyOrders(auth.accessToken!, auth.userId!, refresh: refresh);
+      await context
+          .read<OrderProvider>()
+          .fetchMyOrders(auth.accessToken!, auth.userId!, refresh: refresh);
     }
   }
 
@@ -121,16 +129,21 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.inventory_2_outlined, size: 72, color: AppColors.muted),
+                Icon(Icons.inventory_2_outlined,
+                    size: 72, color: AppColors.muted),
                 SizedBox(height: AppSizes.p16),
                 Text(
                   'Không có đơn hàng nào',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary),
                 ),
                 SizedBox(height: AppSizes.p8),
                 Text(
                   'Hãy mua sắm sản phẩm công nghệ ngay!',
-                  style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.mutedForeground),
                 ),
               ],
             ),
@@ -160,7 +173,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => OrderDetailScreen(orderId: order.orderId.toString()),
+              builder: (_) =>
+                  OrderDetailScreen(orderId: order.orderId.toString()),
             ),
           ),
         );
@@ -184,8 +198,10 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalQty = order.orderItems.fold(0, (sum, item) => sum + item.quantity);
-    final firstItem = order.orderItems.isNotEmpty ? order.orderItems.first : null;
+    final totalQty =
+        order.orderItems.fold(0, (sum, item) => sum + item.quantity);
+    final firstItem =
+        order.orderItems.isNotEmpty ? order.orderItems.first : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSizes.p12),
@@ -209,18 +225,26 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       '${AppStrings.orderPrefix}${order.orderId}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary, fontSize: 14),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                          fontSize: 14),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.p10, vertical: AppSizes.p4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.p10, vertical: AppSizes.p4),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppSizes.r20),
-                        border: Border.all(color: statusColor.withOpacity(0.3)),
+                        border: Border.all(
+                            color: statusColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         statusLabel,
-                        style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -235,15 +259,20 @@ class _OrderCard extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppSizes.r8),
-                        child: firstItem.productImage != null && firstItem.productImage!.isNotEmpty
+                        child: firstItem.productImage != null &&
+                                firstItem.productImage!.isNotEmpty
                             ? Image.network(
                                 firstItem.productImage!,
                                 width: 56,
                                 height: 56,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.muted),
+                                errorBuilder: (_, __, ___) => Container(
+                                    width: 56,
+                                    height: 56,
+                                    color: AppColors.muted),
                               )
-                            : Container(width: 56, height: 56, color: AppColors.muted),
+                            : Container(
+                                width: 56, height: 56, color: AppColors.muted),
                       ),
                       const SizedBox(width: AppSizes.p12),
                       Expanded(
@@ -252,21 +281,29 @@ class _OrderCard extends StatelessWidget {
                           children: [
                             Text(
                               firstItem.productName,
-                              style: const TextStyle(fontSize: 13, color: AppColors.secondary, fontWeight: FontWeight.w500),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.secondary,
+                                  fontWeight: FontWeight.w500),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: AppSizes.p4),
                             Text(
                               'Số lượng: ${firstItem.quantity}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground),
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.mutedForeground),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         formatVND(firstItem.subtotal.round()),
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.secondary),
                       ),
                     ],
                   ),
@@ -275,7 +312,10 @@ class _OrderCard extends StatelessWidget {
                     Center(
                       child: Text(
                         'Xem thêm ${order.orderItems.length - 1} sản phẩm',
-                        style: const TextStyle(fontSize: 11, color: AppColors.mutedForeground, fontStyle: FontStyle.italic),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.mutedForeground,
+                            fontStyle: FontStyle.italic),
                       ),
                     ),
                   ],
@@ -289,17 +329,22 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       '$totalQty sản phẩm',
-                      style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.mutedForeground),
                     ),
                     Row(
                       children: [
                         const Text(
                           'Tổng tiền: ',
-                          style: TextStyle(fontSize: 12, color: AppColors.secondary),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.secondary),
                         ),
                         Text(
                           formatVND(order.finalAmount.round()),
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary),
                         ),
                       ],
                     ),

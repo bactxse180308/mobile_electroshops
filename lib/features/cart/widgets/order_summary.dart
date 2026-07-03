@@ -38,14 +38,16 @@ class OrderSummary extends StatelessWidget {
           const SizedBox(height: AppSizes.p8),
           _SummaryRow(
             label: AppStrings.shipping,
-            value: shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
+            value:
+                shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
           ),
           if (shipping == 0) ...[
             const SizedBox(height: AppSizes.p4),
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Spacer(),
-                Icon(Icons.local_shipping_outlined, size: 12, color: AppColors.success),
+                Icon(Icons.local_shipping_outlined,
+                    size: 12, color: AppColors.success),
                 SizedBox(width: AppSizes.p4),
                 Text(
                   AppStrings.freeShipNote,
@@ -89,7 +91,9 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.mutedForeground)),
         Text(
           value,
           style: const TextStyle(
