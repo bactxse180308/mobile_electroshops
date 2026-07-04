@@ -6,6 +6,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_utils.dart';
 import 'checkout_section.dart';
+import '../../../widgets/common/summary_info_row.dart';
 
 class CheckoutSummaryCard extends StatelessWidget {
   final double subtotal;
@@ -24,12 +25,33 @@ class CheckoutSummaryCard extends StatelessWidget {
     return CheckoutSection(
       child: Column(
         children: [
-          _SummaryLine(AppStrings.subtotal, formatVND(subtotal.round())),
+          SummaryInfoRow(
+            label: AppStrings.subtotal,
+            value: formatVND(subtotal.round()),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              color: AppColors.mutedForeground,
+            ),
+            valueStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.secondary,
+            ),
+          ),
           const SizedBox(height: AppSizes.p8),
-          _SummaryLine(
-            AppStrings.shipping,
-            shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
-            valueColor: shipping == 0 ? AppColors.success : null,
+          SummaryInfoRow(
+            label: AppStrings.shipping,
+            value:
+                shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              color: AppColors.mutedForeground,
+            ),
+            valueStyle: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: shipping == 0 ? AppColors.success : AppColors.secondary,
+            ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSizes.p10),
@@ -55,38 +77,6 @@ class CheckoutSummaryCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SummaryLine extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _SummaryLine(this.label, this.value, {this.valueColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.mutedForeground,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: valueColor ?? AppColors.secondary,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -8,7 +8,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../cart/screens/order_history_screen.dart';
+import '../../order/screens/order_history_screen.dart';
 import '../../stores/screens/stores_screen.dart';
 
 class ProfileScreen extends StatelessWidget {

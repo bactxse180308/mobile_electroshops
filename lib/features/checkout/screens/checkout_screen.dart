@@ -17,8 +17,8 @@ import '../widgets/checkout_summary_card.dart';
 import '../widgets/order_note_input.dart';
 import '../widgets/payment_method_selector.dart';
 import '../widgets/shipping_address_form.dart';
-import 'order_success_screen.dart';
-import 'vnpay_payment_screen.dart';
+import '../../order/screens/order_success_screen.dart';
+import '../../payment/screens/vnpay_payment_screen.dart';
 
 const _paymentMethods = [
   PaymentMethodOption(
@@ -48,7 +48,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
-  late final TextEditingController _noteCtrl;
+  late final TextEditingController _voucherCtrl;
 
   String _paymentMethod = 'cod';
   bool _isLoading = false;
@@ -60,7 +60,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _nameCtrl = TextEditingController(text: auth.fullName ?? '');
     _phoneCtrl = TextEditingController(text: '0901234567');
     _addressCtrl = TextEditingController(text: AppStrings.mockUserAddress);
-    _noteCtrl = TextEditingController();
+    _voucherCtrl = TextEditingController();
   }
 
   @override
@@ -68,7 +68,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
-    _noteCtrl.dispose();
+    _voucherCtrl.dispose();
     super.dispose();
   }
 
@@ -91,12 +91,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _isLoading = true);
 
+    final recipientName = _sanitizeShippingPart(_nameCtrl.text);
+    final recipientPhone = _sanitizeShippingPart(_phoneCtrl.text);
+    final shippingAddress = _sanitizeShippingPart(_addressCtrl.text);
     final orderRequest = CreateOrderRequest(
       shippingAddress:
-          '${_nameCtrl.text.trim()} | ${_phoneCtrl.text.trim()} | ${_addressCtrl.text.trim()}',
+          '$recipientName | $recipientPhone | $shippingAddress',
       paymentMethod: _paymentMethod.toUpperCase(),
       voucherCode:
-          _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+          _voucherCtrl.text.trim().isNotEmpty ? _voucherCtrl.text.trim() : null,
       items: cart.selectedItems
           .map(
             (item) => OrderItemRequest(
@@ -140,6 +143,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _sanitizeShippingPart(String value) {
+    return value.replaceAll('|', '-').trim();
   }
 
   Future<void> _openVNPay(OrderResponse order, String token) async {
@@ -205,7 +212,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         setState(() => _paymentMethod = method);
                       },
                     ),
-                    OrderNoteInput(controller: _noteCtrl),
+                    VoucherCodeInput(controller: _voucherCtrl),
                     CheckoutSummaryCard(
                       subtotal: cart.selectedSubtotal,
                       shipping: cart.shippingFee,

@@ -25,11 +25,11 @@ import 'features/auth/screens/otp_verification_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/home/screens/main_screen.dart';
 import 'features/product/screens/product_detail_screen.dart';
-import 'features/cart/screens/order_success_screen.dart';
-import 'features/cart/screens/order_detail_screen.dart';
-import 'features/cart/screens/checkout_screen.dart';
-import 'features/cart/screens/vnpay_payment_screen.dart';
-import 'features/cart/screens/vnpay_result_screen.dart';
+import 'features/order/screens/order_success_screen.dart';
+import 'features/order/screens/order_detail_screen.dart';
+import 'features/checkout/screens/checkout_screen.dart';
+import 'features/payment/screens/vnpay_payment_screen.dart';
+import 'features/payment/screens/vnpay_result_screen.dart';
 
 Future<String?> _readAccessToken() async {
   final prefs = await SharedPreferences.getInstance();
@@ -39,7 +39,7 @@ Future<String?> _readAccessToken() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await dotenv.load(fileName: '.env');
+    await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint('[ENV] Không tìm thấy .env, dùng dart-define fallback: $e');
   }

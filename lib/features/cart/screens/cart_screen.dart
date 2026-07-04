@@ -11,9 +11,8 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../widgets/cart_header.dart';
 import '../widgets/cart_item_card.dart';
-import '../widgets/coupon_input.dart';
-import '../widgets/order_summary.dart';
-import '../widgets/checkout_bar.dart';
+import '../../order/widgets/order_summary.dart';
+import '../../checkout/widgets/checkout_bar.dart';
 
 class CartScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
@@ -174,9 +173,6 @@ class _CartScreenState extends State<CartScreen> {
                     }
                   },
                 )),
-
-                // Coupon
-                const CouponInput(),
 
                 // Tóm tắt đơn hàng
                 OrderSummary(cart: cart),

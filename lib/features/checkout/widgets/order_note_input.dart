@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/constants/app_strings.dart';
 import 'checkout_section.dart';
 
-class OrderNoteInput extends StatelessWidget {
+class VoucherCodeInput extends StatelessWidget {
   final TextEditingController controller;
 
-  const OrderNoteInput({
+  const VoucherCodeInput({
     super.key,
     required this.controller,
   });
@@ -16,7 +15,7 @@ class OrderNoteInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CheckoutSection(
-      title: AppStrings.orderNotes,
+      title: 'Mã giảm giá (nếu có)',
       child: Container(
         padding: const EdgeInsets.all(AppSizes.p12),
         decoration: BoxDecoration(
@@ -28,7 +27,7 @@ class OrderNoteInput extends StatelessWidget {
           maxLines: 3,
           minLines: 2,
           decoration: const InputDecoration(
-            hintText: AppStrings.orderNotesHint,
+            hintText: 'Nhập mã voucher',
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,

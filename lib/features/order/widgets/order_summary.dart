@@ -5,6 +5,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../widgets/common/summary_info_row.dart';
 
 class OrderSummary extends StatelessWidget {
   final CartProvider cart;
@@ -31,15 +32,33 @@ class OrderSummary extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SummaryRow(
+          SummaryInfoRow(
             label: '${AppStrings.subtotal} ($count ${AppStrings.productUnit})',
             value: formatVND(subtotal.round()),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              color: AppColors.mutedForeground,
+            ),
+            valueStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.secondary,
+            ),
           ),
           const SizedBox(height: AppSizes.p8),
-          _SummaryRow(
+          SummaryInfoRow(
             label: AppStrings.shipping,
             value:
                 shipping == 0 ? AppStrings.free : formatVND(shipping.round()),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              color: AppColors.mutedForeground,
+            ),
+            valueStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.secondary,
+            ),
           ),
           if (shipping == 0) ...[
             const SizedBox(height: AppSizes.p4),
@@ -76,33 +95,6 @@ class OrderSummary extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _SummaryRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.mutedForeground)),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.secondary,
-          ),
-        ),
-      ],
     );
   }
 }
