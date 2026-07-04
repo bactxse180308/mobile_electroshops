@@ -25,7 +25,9 @@ class VNPayReturnParams {
     this.amount,
   });
 
-  bool get isSuccess => responseCode == '00' && (transactionStatus == null || transactionStatus == '00');
+  bool get isSuccess =>
+      responseCode == '00' &&
+      (transactionStatus == null || transactionStatus == '00');
 
   factory VNPayReturnParams.fromUri(Uri uri) {
     final query = uri.queryParameters;
@@ -81,18 +83,20 @@ class VNPayService {
   Future<void> confirmReturn(String fullReturnUrl, String token) async {
     final returnUri = Uri.tryParse(fullReturnUrl);
     if (returnUri == null) {
-      throw const ApiException(statusCode: 0, message: 'Invalid VNPay return URL');
+      throw const ApiException(
+          statusCode: 0, message: 'Invalid VNPay return URL');
     }
     if (returnUri.query.isEmpty) {
-      throw const ApiException(statusCode: 0, message: 'VNPay return URL has no query string');
+      throw const ApiException(
+          statusCode: 0, message: 'VNPay return URL has no query string');
     }
 
     final backendReturnUri = Uri.parse(
       '${ApiService.baseUrl}/payments/vnpay/return?${returnUri.query}',
     );
 
-    print('[VNPAY] Calling backend return endpoint...');
-    print('[VNPAY] Backend return URL: $backendReturnUri');
+    debugPrint('[VNPAY] Calling backend return endpoint...');
+    debugPrint('[VNPAY] Backend return URL: $backendReturnUri');
 
     try {
       final response = await http
@@ -103,7 +107,8 @@ class VNPayService {
           .timeout(_timeout);
 
       final body = utf8.decode(response.bodyBytes);
-      print('[VNPAY] Backend return response: ${response.statusCode} $body');
+      debugPrint(
+          '[VNPAY] Backend return response: ${response.statusCode} $body');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(
@@ -112,9 +117,12 @@ class VNPayService {
         );
       }
     } on SocketException catch (e) {
-      throw ApiException(statusCode: 0, message: 'Cannot call backend VNPay return endpoint: $e');
+      throw ApiException(
+          statusCode: 0,
+          message: 'Cannot call backend VNPay return endpoint: $e');
     } on TimeoutException {
-      throw const ApiException(statusCode: 0, message: 'Backend VNPay return endpoint timed out');
+      throw const ApiException(
+          statusCode: 0, message: 'Backend VNPay return endpoint timed out');
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -171,9 +179,11 @@ class VNPayService {
         message: 'VNPay response does not contain paymentUrl',
       );
     } on SocketException catch (e) {
-      throw ApiException(statusCode: 0, message: 'Cannot connect to backend: $e');
+      throw ApiException(
+          statusCode: 0, message: 'Cannot connect to backend: $e');
     } on TimeoutException {
-      throw const ApiException(statusCode: 0, message: 'VNPay create payment request timed out');
+      throw const ApiException(
+          statusCode: 0, message: 'VNPay create payment request timed out');
     } on ApiException {
       rethrow;
     } catch (e) {

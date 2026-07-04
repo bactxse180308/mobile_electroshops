@@ -158,6 +158,8 @@ class Store {
   final String id;
   final String name;
   final String address;
+  final String district;
+  final String city;
   final String distance;
   final String hours;
   final String phone;
@@ -168,6 +170,8 @@ class Store {
     required this.id,
     required this.name,
     required this.address,
+    required this.district,
+    required this.city,
     required this.distance,
     required this.hours,
     required this.phone,

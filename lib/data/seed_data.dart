@@ -131,10 +131,10 @@ List<Product> get newArrivals => [products[4], products[8], products[9], product
 List<Product> get recentlyViewed => [products[2], products[5], products[7], products[0]];
 
 const stores = <Store>[
-  Store(id: 's1', name: 'ElectroShop Quận 1', address: '123 Nguyễn Huệ, P. Bến Nghé, Q.1, TP.HCM', distance: '1.2 km', hours: '08:30 - 22:00', phone: '0901234567', lat: 10.776, lng: 106.701),
-  Store(id: 's2', name: 'ElectroShop Quận 10', address: '456 Cách Mạng Tháng 8, P.12, Q.10, TP.HCM', distance: '3.8 km', hours: '08:30 - 22:00', phone: '0901234568', lat: 10.773, lng: 106.667),
-  Store(id: 's3', name: 'ElectroShop Cầu Giấy', address: '78 Trần Thái Tông, Cầu Giấy, Hà Nội', distance: 'Hà Nội', hours: '09:00 - 21:30', phone: '0241234567', lat: 21.030, lng: 105.787),
-  Store(id: 's4', name: 'ElectroShop Đống Đa', address: '215 Tây Sơn, Đống Đa, Hà Nội', distance: 'Hà Nội', hours: '09:00 - 21:30', phone: '0241234568', lat: 21.005, lng: 105.825),
+  Store(id: 's1', name: 'ElectroShop Quận 1', address: '123 Nguyễn Huệ, P. Bến Nghé, Q.1, TP.HCM', district: 'Quận 1', city: 'TP.HCM', distance: '1.2 km', hours: '08:30 - 22:00', phone: '0901234567', lat: 10.776, lng: 106.701),
+  Store(id: 's2', name: 'ElectroShop Quận 10', address: '456 Cách Mạng Tháng 8, P.12, Q.10, TP.HCM', district: 'Quận 10', city: 'TP.HCM', distance: '3.8 km', hours: '08:30 - 22:00', phone: '0901234568', lat: 10.773, lng: 106.667),
+  Store(id: 's3', name: 'ElectroShop Cầu Giấy', address: '78 Trần Thái Tông, Cầu Giấy, Hà Nội', district: 'Cầu Giấy', city: 'Hà Nội', distance: 'Hà Nội', hours: '09:00 - 21:30', phone: '0241234567', lat: 21.030, lng: 105.787),
+  Store(id: 's4', name: 'ElectroShop Đống Đa', address: '215 Tây Sơn, Đống Đa, Hà Nội', district: 'Đống Đa', city: 'Hà Nội', distance: 'Hà Nội', hours: '09:00 - 21:30', phone: '0241234568', lat: 21.005, lng: 105.825),
 ];
 
 List<NotifModel> get initialNotifications => [

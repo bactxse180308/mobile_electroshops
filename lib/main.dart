@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mobile_electroshops/core/constants/app_strings.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,20 +25,25 @@ import 'features/auth/screens/otp_verification_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/home/screens/main_screen.dart';
 import 'features/product/screens/product_detail_screen.dart';
-import 'features/cart/screens/order_success_screen.dart';
-import 'features/cart/screens/order_detail_screen.dart';
-import 'features/cart/screens/checkout_screen.dart';
-import 'features/cart/screens/vnpay_payment_screen.dart';
-import 'features/cart/screens/vnpay_result_screen.dart';
+import 'features/order/screens/order_success_screen.dart';
+import 'features/order/screens/order_detail_screen.dart';
+import 'features/checkout/screens/checkout_screen.dart';
+import 'features/payment/screens/vnpay_payment_screen.dart';
+import 'features/payment/screens/vnpay_result_screen.dart';
 
 Future<String?> _readAccessToken() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getString('access_token');
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('[ENV] Không tìm thấy .env, dùng dart-define fallback: $e');
+  }
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,

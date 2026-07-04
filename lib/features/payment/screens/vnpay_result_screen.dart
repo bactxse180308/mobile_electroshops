@@ -7,7 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../models/api_models.dart';
 import '../../../services/vnpay_service.dart';
-import 'order_detail_screen.dart';
+import '../../order/screens/order_detail_screen.dart';
 
 class VNPayResultScreenArgs {
   final bool isSuccess;

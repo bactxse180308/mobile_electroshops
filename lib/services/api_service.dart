@@ -12,7 +12,7 @@ class ApiService {
   static const bool _useEmulator = false;
   // Truyền lúc chạy: flutter run --dart-define=API_HOST=192.168.x.x
   static const String _lanHost =
-      String.fromEnvironment('API_HOST', defaultValue: '192.168.1.13');
+      String.fromEnvironment('API_HOST', defaultValue: '192.168.1.11');
   static String get _androidHost => _useEmulator ? '10.0.2.2' : _lanHost;
 
   static String get baseUrl {

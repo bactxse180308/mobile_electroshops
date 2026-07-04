@@ -1,10 +1,16 @@
-/// Models ánh xạ chính xác JSON response từ Spring Boot backend.
-/// ApiResponse<T> wrapper: { "status": int, "message": str, "data": T }
-/// Paginated: data có dạng { "content": [...], "totalElements": int, "last": bool, ... }
+// Models ánh xạ chính xác JSON response từ Spring Boot backend.
+// ApiResponse<T> wrapper: { "status": int, "message": str, "data": T }
+// Paginated: data có dạng { "content": [...], "totalElements": int, "last": bool, ... }
 
 // ─────────────────────────────────────────────
 // Wrapper chung cho tất cả API response
 // ─────────────────────────────────────────────
+double parseNum(dynamic v) {
+  if (v == null) return 0.0;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? 0.0;
+}
+
 class ApiWrapper<T> {
   final int status;
   final String message;
@@ -58,9 +64,8 @@ class ApiPage<T> {
     }
 
     return ApiPage(
-      content: rawContent
-          .map((e) => fromItem(e as Map<String, dynamic>))
-          .toList(),
+      content:
+          rawContent.map((e) => fromItem(e as Map<String, dynamic>)).toList(),
       totalElements: parseCount(json['totalElements']),
       totalPages: parseCount(json['totalPages'] ?? 1),
       number: parseCount(json['number'] ?? 0),
@@ -114,12 +119,6 @@ class ApiProductResponse {
     final rawPrice = json['price'];
     final rawOriginal = json['originalPrice'];
 
-    double parseNum(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
     final rawUrls = json['imageUrls'] as List<dynamic>? ?? [];
     return ApiProductResponse(
       productId: json['productId'] as int? ?? 0,
@@ -154,7 +153,8 @@ class ApiProductResponse {
     return result;
   }
 
-  bool get isAvailable => (status?.toUpperCase() ?? '') == 'AVAILABLE' && quantity > 0;
+  bool get isAvailable =>
+      (status?.toUpperCase() ?? '') == 'AVAILABLE' && quantity > 0;
 }
 
 // ─────────────────────────────────────────────
@@ -320,12 +320,6 @@ class ApiCartItemResponse {
   });
 
   factory ApiCartItemResponse.fromJson(Map<String, dynamic> json) {
-    double parseNum(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
     return ApiCartItemResponse(
       productId: json['productId'] as int? ?? 0,
       productName: json['productName'] as String? ?? '',
@@ -353,12 +347,6 @@ class ApiCartResponse {
   });
 
   factory ApiCartResponse.fromJson(Map<String, dynamic> json) {
-    double parseNum(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
     final rawItems = json['items'] as List<dynamic>? ?? [];
     return ApiCartResponse(
       cartId: json['cartId'] as int? ?? 0,
@@ -384,9 +372,9 @@ class OrderItemRequest {
   const OrderItemRequest({required this.productId, required this.quantity});
 
   Map<String, dynamic> toJson() => {
-    'productId': productId,
-    'quantity': quantity,
-  };
+        'productId': productId,
+        'quantity': quantity,
+      };
 }
 
 /// Request tạo đơn hàng — khớp với BE CreateOrderRequest
@@ -404,11 +392,12 @@ class CreateOrderRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    'shippingAddress': shippingAddress,
-    'paymentMethod': paymentMethod,
-    if (voucherCode != null && voucherCode!.isNotEmpty) 'voucherCode': voucherCode,
-    'items': items.map((i) => i.toJson()).toList(),
-  };
+        'shippingAddress': shippingAddress,
+        'paymentMethod': paymentMethod,
+        if (voucherCode != null && voucherCode!.isNotEmpty)
+          'voucherCode': voucherCode,
+        'items': items.map((i) => i.toJson()).toList(),
+      };
 }
 
 /// Item trong response đơn hàng — khớp với BE OrderItemResponse
@@ -436,12 +425,6 @@ class ApiOrderItemResponse {
   });
 
   factory ApiOrderItemResponse.fromJson(Map<String, dynamic> json) {
-    double parseNum(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
     return ApiOrderItemResponse(
       orderDetailId: json['orderDetailId'] as int? ?? 0,
       productId: json['productId'] as int? ?? 0,
@@ -461,16 +444,17 @@ class OrderResponse {
   final int orderId;
   final int userId;
   final String? userFullName;
-  final String orderStatus;       // PENDING | CONFIRMED | SHIPPED | DELIVERED | CANCELLED
+  final String
+      orderStatus; // PENDING | CONFIRMED | SHIPPED | DELIVERED | CANCELLED
   final String paymentMethod;
-  final String paymentStatus;     // PENDING | SUCCESS | FAILED | REFUNDED
+  final String paymentStatus; // PENDING | SUCCESS | FAILED | REFUNDED
   final String? shippingAddress;
   final double totalAmount;
   final double discountAmount;
   final double finalAmount;
   final String? voucherCode;
   final String? cancelReason;
-  final String? orderDate;        // ISO string từ LocalDateTime
+  final String? orderDate; // ISO string từ LocalDateTime
   final String? updatedAt;
   final List<ApiOrderItemResponse> orderItems;
 
@@ -493,12 +477,6 @@ class OrderResponse {
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
-    double parseNum(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
     final rawItems = json['orderItems'] as List<dynamic>? ?? [];
     return OrderResponse(
       orderId: json['orderId'] as int? ?? 0,
@@ -521,4 +499,3 @@ class OrderResponse {
     );
   }
 }
-
