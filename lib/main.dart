@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,6 +12,7 @@ import 'providers/order_provider.dart';
 import 'providers/payment_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/admin_chat_provider.dart';
+import 'providers/product_provider.dart';
 import 'features/chat/services/chat_api.dart';
 import 'features/chat/services/admin_chat_api.dart';
 import 'features/chat/services/chat_socket.dart';
@@ -55,6 +57,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(
           create: (_) => ChatProvider(
             api: ChatApi(),

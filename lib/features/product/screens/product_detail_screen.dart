@@ -7,8 +7,8 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../models/models.dart';
-import '../../../models/api_models.dart';
-import '../../../services/api_service.dart';
+import '../../../providers/product_provider.dart';
+import '../../../core/widgets/shimmer_box.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../widgets/product_card.dart';
@@ -31,69 +31,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ── UI state ───────────────────────────────────────────────────────────────
   int _qty = 1;
 
-  // ── Data state ─────────────────────────────────────────────────────────────
-  Product? _product;
-  List<Product> _related = [];
-  List<ApiProductAttributeResponse> _attributes = [];
-  ApiPage<ApiReviewResponse>? _reviewsPage;
-  ApiRatingStatsResponse? _ratingStats;
-  bool _isLoading = true;
-  String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
-    _loadProduct();
-  }
-
-  // ── Load product from API ──────────────────────────────────────────────────
-  Future<void> _loadProduct() async {
-    if (!mounted) return;
-    setState(() { _isLoading = true; _errorMessage = null; });
-
-    try {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final id = int.tryParse(widget.productId);
-      if (id == null) throw const ApiException(statusCode: 0, message: AppStrings.errInvalidProductId);
-
-      final api = ApiService();
-      final apiProduct = await api.getProductById(id);
-      final product = Product.fromApi(apiProduct);
-
-      // Lấy sản phẩm liên quan theo cùng danh mục
-      List<Product> related = [];
-      if (apiProduct.categoryId != null) {
-        final relatedPage = await api.getProducts(
-          categoryId: apiProduct.categoryId,
-          size: 8,
-        );
-        related = relatedPage.content
-            .where((p) => p.productId != id)
-            .take(6)
-            .map((p) => Product.fromApi(p))
-            .toList();
+      if (id != null) {
+        context.read<ProductProvider>().loadProductDetail(id);
       }
-
-      // Lấy attributes, reviews
-      final attrs = await api.getProductAttributes(id);
-      final stats = await api.getProductRatingStats(id);
-      final revs = await api.getProductReviews(id, size: 10);
-
-      if (!mounted) return;
-      setState(() {
-        _product = product;
-        _related = related;
-        _attributes = attrs;
-        _ratingStats = stats;
-        _reviewsPage = revs;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e is ApiException ? e.message : e.toString();
-        _isLoading = false;
-      });
-    }
+    });
   }
 
   // ── Add to cart qua API ────────────────────────────────────────────────────
@@ -143,10 +89,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return _buildLoading();
-    if (_errorMessage != null) return _buildError();
-    if (_product == null) return _buildNotFound();
-    return _buildContent(_product!);
+    final provider = context.watch<ProductProvider>();
+    
+    if (provider.isLoadingDetail) return _buildLoading();
+    if (provider.detailError != null) return _buildError(provider);
+    if (provider.currentProduct == null) return _buildNotFound();
+    return _buildContent(provider);
   }
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
@@ -155,12 +103,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       body: Column(
         children: [
           // Image area shimmer
-          _AnimatedShimmer(
-            child: Container(
-              color: Colors.grey[300],
-              height: MediaQuery.of(context).size.width,
-              width: double.infinity,
-            ),
+          ShimmerBox(
+            height: MediaQuery.of(context).size.width,
+            width: double.infinity,
+            radius: 0,
           ),
           const SizedBox(height: AppSizes.p12),
           // Text shimmer
@@ -169,11 +115,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _AnimatedShimmer(child: Container(height: 28, width: 160, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(AppSizes.r6)))),
+                const ShimmerBox(height: 28, width: 160, radius: AppSizes.r6),
                 const SizedBox(height: AppSizes.p10),
-                _AnimatedShimmer(child: Container(height: 16, width: double.infinity, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(AppSizes.r6)))),
+                const ShimmerBox(height: 16, width: double.infinity, radius: AppSizes.r6),
                 const SizedBox(height: AppSizes.p6),
-                _AnimatedShimmer(child: Container(height: 16, width: 200, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(AppSizes.r6)))),
+                const ShimmerBox(height: 16, width: 200, radius: AppSizes.r6),
               ],
             ),
           ),
@@ -182,7 +128,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(ProductProvider provider) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background,
@@ -206,10 +152,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(height: AppSizes.p16),
               const Text(AppStrings.errLoadProduct, style: AppTextStyles.h3),
               const SizedBox(height: AppSizes.p8),
-              Text(_errorMessage ?? '', style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground), textAlign: TextAlign.center),
+              Text(provider.detailError ?? '', style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground), textAlign: TextAlign.center),
               const SizedBox(height: AppSizes.p24),
               GestureDetector(
-                onTap: _loadProduct,
+                onTap: () {
+                  final id = int.tryParse(widget.productId);
+                  if (id != null) provider.loadProductDetail(id);
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSizes.p24, vertical: AppSizes.p12),
                   decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(AppSizes.r12)),
@@ -231,7 +180,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   // ── Main product content ───────────────────────────────────────────────────
-  Widget _buildContent(Product p) {
+  Widget _buildContent(ProductProvider provider) {
+    final p = provider.currentProduct!;
     return Scaffold(
       body: Column(
         children: [
@@ -258,13 +208,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Tabs
                   ProductTabContainer(
                     product: p,
-                    attributes: _attributes,
-                    ratingStats: _ratingStats,
-                    reviews: _reviewsPage?.content ?? [],
+                    attributes: provider.currentAttributes,
+                    ratingStats: provider.currentRatingStats,
+                    reviews: provider.currentReviewsPage?.content ?? [],
                   ),
 
                   // Related products
-                  if (_related.isNotEmpty) ...[
+                  if (provider.relatedProducts.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(AppSizes.p16, AppSizes.p16, AppSizes.p16, AppSizes.p8),
                       child: Align(alignment: Alignment.centerLeft, child: Text(AppStrings.relatedProducts, style: AppTextStyles.h3)),
@@ -274,13 +224,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
-                        itemCount: _related.length,
+                        itemCount: provider.relatedProducts.length,
                         separatorBuilder: (_, __) => const SizedBox(width: AppSizes.p10),
                         itemBuilder: (context, i) => ProductCard(
-                          product: _related[i],
+                          product: provider.relatedProducts[i],
                           variant: ProductCardVariant.horizontal,
                           onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(
-                            builder: (_) => ProductDetailScreen(productId: _related[i].id),
+                            builder: (_) => ProductDetailScreen(productId: provider.relatedProducts[i].id),
                           )),
                         ),
                       ),
@@ -343,12 +293,4 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
   }
-}
-
-class _AnimatedShimmer extends StatelessWidget {
-  final Widget child;
-  const _AnimatedShimmer({required this.child});
-
-  @override
-  Widget build(BuildContext context) => child;
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -7,8 +6,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/widgets/shimmer_box.dart';
-import '../../../models/models.dart';
-import '../../../services/api_service.dart';
+import '../../../providers/product_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/chat_provider.dart';
@@ -39,71 +37,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ── API Data ────────────────────────────
-  List<Category> _categories = [];
-  List<Brand> _brands = [];
-  List<Product> _flashSale = [];     // sản phẩm có discount
-  List<Product> _bestSellers = [];   // sắp xếp theo soldCount
-  List<Product> _newArrivals = [];   // sản phẩm mới nhất
-  List<Product> _recentlyViewed = []; // giữ local (không có API)
-
-  bool _isLoading = true;
-  String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
-    _loadHomeData();
-  }
-
-  // ── Data Loading ──────────────────────────────────────────────────────────
-  Future<void> _loadHomeData() async {
-    if (!mounted) return;
-    setState(() { _isLoading = true; _errorMessage = null; });
-
-    try {
-      final api = ApiService();
-
-      // Load categories và brands trước
-      final cats  = await api.getCategories();
-      final brnds = await api.getBrands();
-
-      if (!mounted) return;
-      setState(() {
-        _categories = cats.map((e) => Category.fromApi(e)).toList();
-        _brands     = brnds.map((e) => Brand.fromApi(e)).toList();
-      });
-
-      // Load sản phẩm — dùng sort client-side để tránh lỗi
-      List<Product> flash = [];
-      List<Product> best  = [];
-      List<Product> newArr = [];
-
-      try {
-        final p = await api.getProducts(size: 20);
-        final all = p.content.map((e) => Product.fromApi(e)).toList();
-        flash  = List.from(all)..sort((a, b) => (b.oldPrice - b.price).compareTo(a.oldPrice - a.price));
-        best   = List.from(all)..sort((a, b) => b.sold.compareTo(a.sold));
-        newArr = List.from(all);
-      } catch (e) {
-        debugPrint('Load products error: $e');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<ProductProvider>();
+      if (provider.homeCategories.isEmpty) {
+        provider.loadHomeData();
       }
-
-      if (!mounted) return;
-      setState(() {
-        _flashSale      = flash.take(6).toList();
-        _bestSellers    = best.take(4).toList();
-        _newArrivals    = newArr.take(4).toList();
-        _recentlyViewed = best.skip(4).take(4).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e is ApiException ? e.message : e.toString();
-        _isLoading = false;
-      });
-    }
+    });
   }
 
   void _goToProduct(BuildContext context, String id) {
@@ -118,6 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final chatCount = isAdmin
         ? context.watch<AdminChatProvider>().totalUnread
         : context.watch<ChatProvider>().unreadCount;
+    final productProvider = context.watch<ProductProvider>();
+
     return Column(
       children: [
         HomeHeader(
@@ -136,11 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
           onSearchTap: () => widget.onNavigate?.call(1),
         ),
         Expanded(
-          child: _isLoading
+          child: productProvider.isLoadingHome
               ? _buildShimmer()
-              : _errorMessage != null
-                  ? _buildError()
-                  : _buildContent(),
+              : productProvider.homeError != null
+                  ? _buildError(productProvider)
+                  : _buildContent(productProvider),
         ),
       ],
     );
@@ -204,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Error State ───────────────────────────────────────────────────────────
-  Widget _buildError() {
+  Widget _buildError(ProductProvider provider) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.p32),
@@ -223,13 +167,13 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text(AppStrings.errCannotLoadData, style: AppTextStyles.h3),
             const SizedBox(height: AppSizes.p8),
             Text(
-              _errorMessage ?? AppStrings.error,
+              provider.homeError ?? AppStrings.error,
               style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSizes.p24),
             GestureDetector(
-              onTap: _loadHomeData,
+              onTap: provider.loadHomeData,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.p24, vertical: AppSizes.p12),
                 decoration: BoxDecoration(
@@ -246,9 +190,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Main Content ──────────────────────────────────────────────────────────
-  Widget _buildContent() {
+  Widget _buildContent(ProductProvider provider) {
     return RefreshIndicator(
-      onRefresh: _loadHomeData,
+      onRefresh: provider.loadHomeData,
       color: AppColors.primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -260,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Categories
             HomeCategoriesList(
-              categories: _categories,
+              categories: provider.homeCategories,
               onCategoryTap: (id, name) {
                 widget.onNavigateToCategories?.call(
                   categoryId: id,
@@ -271,14 +215,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Flash Sale
             HomeFlashSale(
-              products: _flashSale,
+              products: provider.flashSale,
               onProductTap: (id) => _goToProduct(context, id),
               onViewAllTap: () => widget.onNavigate?.call(1),
             ),
 
             // Brands
             HomeBrandsList(
-              brands: _brands,
+              brands: provider.homeBrands,
               onBrandTap: (id, name) {
                 widget.onNavigateToCategories?.call(
                   brandId: id,
@@ -288,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // Best Sellers
-            if (_bestSellers.isNotEmpty) ...[
+            if (provider.bestSellers.isNotEmpty) ...[
               HomeSectionHeader(
                 title: AppStrings.sectionBestSellers,
                 onViewAllTap: () => widget.onNavigate?.call(1),
@@ -302,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 0.52,
-                  children: _bestSellers.map((p) => ProductCard(
+                  children: provider.bestSellers.map((p) => ProductCard(
                     product: p,
                     onTap: () => _goToProduct(context, p.id),
                   )).toList(),
@@ -311,26 +255,26 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
 
             // Recently Viewed
-            if (_recentlyViewed.isNotEmpty) ...[
+            if (provider.recentlyViewed.isNotEmpty) ...[
               const HomeSectionHeader(title: AppStrings.sectionRecentlyViewed),
               SizedBox(
                 height: 230,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
-                  itemCount: _recentlyViewed.length,
+                  itemCount: provider.recentlyViewed.length,
                   separatorBuilder: (_, __) => const SizedBox(width: AppSizes.p10),
                   itemBuilder: (context, i) => ProductCard(
-                    product: _recentlyViewed[i],
+                    product: provider.recentlyViewed[i],
                     variant: ProductCardVariant.horizontal,
-                    onTap: () => _goToProduct(context, _recentlyViewed[i].id),
+                    onTap: () => _goToProduct(context, provider.recentlyViewed[i].id),
                   ),
                 ),
               ),
             ],
 
             // New Arrivals
-            if (_newArrivals.isNotEmpty) ...[
+            if (provider.newArrivals.isNotEmpty) ...[
               HomeSectionHeader(
                 title: AppStrings.sectionNewArrivals,
                 onViewAllTap: () => widget.onNavigate?.call(1),
@@ -344,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 0.52,
-                  children: _newArrivals.map((p) => ProductCard(
+                  children: provider.newArrivals.map((p) => ProductCard(
                     product: p,
                     onTap: () => _goToProduct(context, p.id),
                   )).toList(),

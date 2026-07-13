@@ -6,8 +6,9 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/paging_controller_mixin.dart';
 import '../../../models/models.dart';
+import 'package:provider/provider.dart';
 import '../../../models/api_models.dart';
-import '../../../services/api_service.dart';
+import '../../../providers/product_provider.dart';
 import '../widgets/product_card.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/shimmer_box.dart';
@@ -102,9 +103,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
   // ── Load brands and categories for filter ─────────────────────────────────
   Future<void> _loadBrandsAndCategories() async {
     try {
-      final api = ApiService();
-      final apiBrands = await api.getBrands();
-      final apiCats = await api.getCategories();
+      final provider = context.read<ProductProvider>();
+      final apiBrands = await provider.getBrands();
+      final apiCats = await provider.getCategories();
       if (!mounted) return;
       setState(() {
         _apiBrands = apiBrands;
@@ -123,7 +124,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
         if (mounted) setState(() {});
       },
       fetcher: (page) async {
-        final apiPage = await ApiService().getProducts(
+        final provider = context.read<ProductProvider>();
+        final apiPage = await provider.getProducts(
           keyword: _search.text.trim().isEmpty ? null : _search.text.trim(),
           categoryId: _selectedCategoryId,
           brandId: _selectedBrandId,
