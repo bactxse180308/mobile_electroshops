@@ -7,11 +7,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/paging_controller_mixin.dart';
 import '../../../models/models.dart';
 import '../../../models/api_models.dart';
-import '../../../services/api_service.dart';
+import '../../../services/product_service.dart';
 import '../widgets/product_card.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/shimmer_box.dart';
+import '../../../core/widgets/error_retry_view.dart';
 import '../widgets/filter_sheet.dart';
+import '../widgets/product_grid_shimmer.dart';
 import '../widgets/category_header.dart';
 import 'product_detail_screen.dart';
 
@@ -102,7 +103,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
   // ── Load brands and categories for filter ─────────────────────────────────
   Future<void> _loadBrandsAndCategories() async {
     try {
-      final api = ApiService();
+      final api = ProductService();
       final apiBrands = await api.getBrands();
       final apiCats = await api.getCategories();
       if (!mounted) return;
@@ -123,7 +124,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
         if (mounted) setState(() {});
       },
       fetcher: (page) async {
-        final apiPage = await ApiService().getProducts(
+        final apiPage = await ProductService().getProducts(
           keyword: _search.text.trim().isEmpty ? null : _search.text.trim(),
           categoryId: _selectedCategoryId,
           brandId: _selectedBrandId,
@@ -196,9 +197,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
             child: Stack(
               children: [
                 isLoading
-                    ? _buildLoadingGrid()
+                    ? const ProductGridShimmer()
                     : errorMessage != null
-                        ? _buildErrorState()
+                        ? ErrorRetryView(
+                            errorMessage: errorMessage,
+                            onRetry: () => _loadProducts(reset: true),
+                          )
                         : items.isEmpty
                             ? const EmptyState(
                                 icon: Icons.search_off,
@@ -271,41 +275,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with PagingControll
                     ),
                   ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSizes.p12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, crossAxisSpacing: AppSizes.p12, mainAxisSpacing: AppSizes.p12, childAspectRatio: 0.52,
-      ),
-      itemCount: 6,
-      itemBuilder: (_, __) => const ShimmerBox(),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.mutedForeground),
-          const SizedBox(height: AppSizes.p12),
-          Text(errorMessage ?? AppStrings.error,
-              style: const TextStyle(color: AppColors.mutedForeground, fontSize: 13),
-              textAlign: TextAlign.center),
-          const SizedBox(height: AppSizes.p16),
-          GestureDetector(
-            onTap: () => _loadProducts(reset: true),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.p20, vertical: AppSizes.p10),
-              decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(AppSizes.r12)),
-              child: const Text(AppStrings.retry, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             ),
           ),
         ],

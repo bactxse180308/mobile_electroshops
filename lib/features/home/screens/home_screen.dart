@@ -4,11 +4,12 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_assets.dart';
-import '../../../core/widgets/shimmer_box.dart';
+import '../../../core/widgets/error_retry_view.dart';
 import '../../../models/models.dart';
 import '../../../services/api_service.dart';
+import '../widgets/home_shimmer.dart';
+import '../../../services/product_service.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/chat_provider.dart';
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Product> _bestSellers = [];   // sắp xếp theo soldCount
   List<Product> _newArrivals = [];   // sản phẩm mới nhất
   List<Product> _recentlyViewed = []; // giữ local (không có API)
+  List<String> _bannerImages = AppAssets.homeBanners; // default value
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -62,16 +64,18 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
-      final api = ApiService();
+      final api = ProductService();
 
-      // Load categories và brands trước
-      final cats  = await api.getCategories();
-      final brnds = await api.getBrands();
+      // Load categories, brands, và banners trước
+      final cats    = await api.getCategories();
+      final brnds   = await api.getBrands();
+      final banners = await api.getHomeBannerUrls();
 
       if (!mounted) return;
       setState(() {
-        _categories = cats.map((e) => Category.fromApi(e)).toList();
-        _brands     = brnds.map((e) => Brand.fromApi(e)).toList();
+        _categories   = cats.map((e) => Category.fromApi(e)).toList();
+        _brands       = brnds.map((e) => Brand.fromApi(e)).toList();
+        _bannerImages = banners.isNotEmpty ? banners : AppAssets.homeBanners;
       });
 
       // Load sản phẩm — dùng sort client-side để tránh lỗi
@@ -137,111 +141,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         Expanded(
           child: _isLoading
-              ? _buildShimmer()
+              ? const HomeShimmer()
               : _errorMessage != null
-                  ? _buildError()
+                  ? ErrorRetryView(
+                      errorMessage: _errorMessage,
+                      onRetry: _loadHomeData,
+                    )
                   : _buildContent(),
         ),
       ],
-    );
-  }
-
-  // ── Loading Shimmer ───────────────────────────────────────────────────────
-  Widget _buildShimmer() {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Banner shimmer
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSizes.p16, AppSizes.p16, AppSizes.p16, 0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.r16),
-              child: const ShimmerBox(height: 160, width: double.infinity),
-            ),
-          ),
-          const SizedBox(height: AppSizes.p20),
-          // Category shimmer
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSizes.p16),
-            child: ShimmerBox(height: 14, width: 80),
-          ),
-          const SizedBox(height: AppSizes.p12),
-          SizedBox(
-            height: 90,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
-              itemCount: 6,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSizes.p12),
-              itemBuilder: (_, __) => Column(
-                children: const [
-                  ShimmerBox(height: 56, width: 56, radius: AppSizes.r16),
-                  SizedBox(height: AppSizes.p6),
-                  ShimmerBox(height: 10, width: 48),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSizes.p20),
-          // Product grid shimmer
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.p16),
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: AppSizes.p12,
-              mainAxisSpacing: AppSizes.p12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 0.52,
-              children: List.generate(4, (_) => const ShimmerBox(height: double.infinity, width: double.infinity, radius: AppSizes.r12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Error State ───────────────────────────────────────────────────────────
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSizes.p32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 72, height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.wifiErrBg,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.wifi_off_rounded, size: 36, color: AppColors.destructive),
-            ),
-            const SizedBox(height: AppSizes.p16),
-            const Text(AppStrings.errCannotLoadData, style: AppTextStyles.h3),
-            const SizedBox(height: AppSizes.p8),
-            Text(
-              _errorMessage ?? AppStrings.error,
-              style: const TextStyle(fontSize: 13, color: AppColors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSizes.p24),
-            GestureDetector(
-              onTap: _loadHomeData,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.p24, vertical: AppSizes.p12),
-                decoration: BoxDecoration(
-                  gradient: AppColors.heroGradient,
-                  borderRadius: BorderRadius.circular(AppSizes.r12),
-                ),
-                child: const Text(AppStrings.retry, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -256,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Banner Carousel
-            const HomeBannerCarousel(bannerImages: AppAssets.homeBanners),
+            HomeBannerCarousel(bannerImages: _bannerImages),
 
             // Categories
             HomeCategoriesList(
