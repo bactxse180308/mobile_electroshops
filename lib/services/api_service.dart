@@ -4,27 +4,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/api_models.dart';
+import '../core/utils/api_config.dart';
 
 /// Service trung tâm để giao tiếp với Spring Boot backend.
 class ApiService {
-  // true -> Emulator (10.0.2.2). false -> Máy thật (IP LAN của PC).
-  static const bool _useEmulator = false;
-  // Truyền lúc chạy: flutter run --dart-define=API_HOST=192.168.x.x
-  static const String _lanHost =
-      String.fromEnvironment('API_HOST', defaultValue: '192.168.1.11');
-  static String get _androidHost => _useEmulator ? '10.0.2.2' : _lanHost;
-
-  static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:8080/api/v1';
-    try {
-      return Platform.isAndroid
-          ? 'http://$_androidHost:8080/api/v1'
-          : 'http://localhost:8080/api/v1';
-    } catch (_) {
-      return 'http://localhost:8080/api/v1';
-    }
-  }
+  static String get baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
   static const Duration _timeout = Duration(seconds: 15);
 
@@ -114,18 +98,23 @@ class ApiService {
   }
 
   // ── HTTP Helpers ──────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> _get(String path, {Map<String, String?>? params}) async {
+  
+  Future<Map<String, dynamic>> get(String path, {Map<String, String?>? params}) async {
     final cleanParams = <String, String>{};
     params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
-    final uri = Uri.parse('$baseUrl$path').replace(
+    final String url = path.startsWith('http')
+        ? path
+        : (path.startsWith('/api/v1/') || !path.startsWith('/api/')
+            ? '$baseUrl$path'
+            : '${ApiConfig.baseUrl}$path');
+    final uri = Uri.parse(url).replace(
       queryParameters: cleanParams.isEmpty ? null : cleanParams,
     );
     debugPrint('[API] GET $uri');
     return _send(http.get(uri, headers: _baseHeaders()), path);
   }
 
-  Future<Map<String, dynamic>> _authGet(String path, {Map<String, String?>? params}) async {
+  Future<Map<String, dynamic>> authGet(String path, {Map<String, String?>? params}) async {
     final token = await _getToken();
     final cleanParams = <String, String>{};
     params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
@@ -147,7 +136,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> _authPost(String path, Map<String, dynamic> body, {Map<String, String?>? params}) async {
+  Future<Map<String, dynamic>> authPost(String path, Map<String, dynamic> body, {Map<String, String?>? params}) async {
     final token = await _getToken();
     final cleanParams = <String, String>{};
     params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
@@ -175,7 +164,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> _authPatch(String path, {Map<String, String?>? params}) async {
+  Future<Map<String, dynamic>> authPatch(String path, {Map<String, String?>? params}) async {
     final token = await _getToken();
     final cleanParams = <String, String>{};
     params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
@@ -197,7 +186,7 @@ class ApiService {
     }
   }
 
-  Future<void> _authDelete(String path, {Map<String, String?>? params}) async {
+  Future<void> authDelete(String path, {Map<String, String?>? params}) async {
     final token = await _getToken();
     final cleanParams = <String, String>{};
     params?.forEach((k, v) { if (v != null) cleanParams[k] = v; });
@@ -271,178 +260,6 @@ class ApiService {
       debugPrint('[API] Unknown error: $e');
       throw ApiException(statusCode: 0, message: e.toString());
     }
-  }
-
-  // ── Products ─────────────────────────────────────────────────────────────
-
-  Future<ApiPage<ApiProductResponse>> getProducts({
-    String? keyword,
-    int? categoryId,
-    int? brandId,
-    int page = 0,
-    int size = 20,
-    String? sort,
-  }) async {
-    final j = await _get('/products', params: {
-      if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
-      if (categoryId != null) 'categoryId': categoryId.toString(),
-      if (brandId != null) 'brandId': brandId.toString(),
-      'page': page.toString(),
-      'size': size.toString(),
-      if (sort != null) 'sort': sort,
-    });
-    final data = j['data'] as Map<String, dynamic>;
-    return ApiPage.fromJson(data, ApiProductResponse.fromJson);
-  }
-
-  Future<ApiProductResponse> getProductById(int id) async {
-    final j = await _get('/products/$id');
-    return ApiProductResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  // ── Categories ───────────────────────────────────────────────────────────
-
-  Future<List<ApiCategoryResponse>> getCategories({int size = 100}) async {
-    final j = await _get('/categories', params: {'page': '0', 'size': size.toString()});
-    final data = j['data'] as Map<String, dynamic>;
-    return ApiPage.fromJson(data, ApiCategoryResponse.fromJson).content;
-  }
-
-  // ── Brands ───────────────────────────────────────────────────────────────
-
-  Future<List<ApiBrandResponse>> getBrands({int size = 100}) async {
-    final j = await _get('/brands', params: {'page': '0', 'size': size.toString()});
-    final data = j['data'] as Map<String, dynamic>;
-    return ApiPage.fromJson(data, ApiBrandResponse.fromJson).content;
-  }
-
-  // ── Attributes & Reviews ─────────────────────────────────────────────────
-
-  Future<List<ApiProductAttributeResponse>> getProductAttributes(int productId) async {
-    final j = await _get('/product-attributes/product/$productId');
-    final data = j['data'] as List<dynamic>? ?? [];
-    return data.map((e) => ApiProductAttributeResponse.fromJson(e)).toList();
-  }
-
-  Future<ApiPage<ApiReviewResponse>> getProductReviews(
-    int productId, {
-    int page = 0,
-    int size = 20,
-  }) async {
-    final j = await _get('/reviews', params: {
-      'productId': productId.toString(),
-      'page': page.toString(),
-      'size': size.toString(),
-    });
-    return ApiPage.fromJson(
-      j['data'] as Map<String, dynamic>,
-      ApiReviewResponse.fromJson,
-    );
-  }
-
-  Future<ApiRatingStatsResponse> getProductRatingStats(int productId) async {
-    final j = await _get('/reviews/product/$productId/rating-stats');
-    return ApiRatingStatsResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  // ── Cart ─────────────────────────────────────────────────────────────────
-
-  /// Lấy giỏ hàng của user (yêu cầu đăng nhập)
-  Future<ApiCartResponse> getCart(int userId) async {
-    final j = await _authGet('/cart/$userId');
-    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  /// Thêm sản phẩm vào giỏ
-  Future<ApiCartResponse> addToCart(
-    int userId,
-    int productId,
-    int quantity,
-  ) async {
-    final j = await _authPost('/cart/$userId/items', {
-      'productId': productId,
-      'quantity': quantity,
-    });
-    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  /// Cập nhật số lượng sản phẩm trong giỏ
-  Future<ApiCartResponse> updateCartItem(
-    int userId,
-    int productId,
-    int quantity,
-  ) async {
-    final j = await _authPatch(
-      '/cart/$userId/items/$productId',
-      params: {'quantity': quantity.toString()},
-    );
-    return ApiCartResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  /// Xoá sản phẩm khỏi giỏ
-  Future<void> removeCartItem(int userId, int productId) async {
-    await _authDelete('/cart/$userId/items/$productId');
-  }
-
-  /// Xoá toàn bộ giỏ hàng
-  Future<void> clearCart(int userId) async {
-    await _authDelete('/cart/$userId');
-  }
-
-  // ── Order API ─────────────────────────────────────────────────────────────
-
-  /// Tạo đơn hàng mới — BE: POST /orders?userId={userId}
-  Future<OrderResponse> createOrder(
-    CreateOrderRequest request,
-    int userId,
-  ) async {
-    final j = await _authPost('/orders', request.toJson(), params: {'userId': userId.toString()});
-    return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  /// Lấy danh sách đơn hàng của user
-  Future<ApiPage<OrderResponse>> getMyOrders(
-    int userId,
-    String token, {
-    int page = 0,
-    int size = 10,
-  }) async {
-    final j = await _authGet('/orders/user/$userId', params: {
-      'page': '$page',
-      'size': '$size',
-    });
-    return ApiPage.fromJson(
-      j['data'] as Map<String, dynamic>,
-      (e) => OrderResponse.fromJson(e as Map<String, dynamic>),
-    );
-
-  }
-
-  /// Lấy chi tiết đơn hàng theo ID
-  Future<OrderResponse> getOrderById(int id, String token) async {
-    final j = await _authGet('/orders/$id');
-    return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
-  }
-
-  /// Hủy đơn hàng
-  Future<void> cancelOrder(int id, String token) async {
-    await _authPatch('/orders/$id/cancel');
-  }
-
-  // ── Payment ───────────────────────────────────────────────────────────────
-
-  /// Tạo VNPay payment URL — BE: POST /payments/vnpay/create
-  Future<String> createVNPayUrl(int orderId) async {
-    final j = await _authPost(
-      '/payments/vnpay/create',
-      {},
-      params: {
-        'orderId': orderId.toString(),
-        'type': 'NORMAL',
-      },
-    );
-    final data = j['data'] as Map<String, dynamic>;
-    return data['paymentUrl'] as String;
   }
 }
 

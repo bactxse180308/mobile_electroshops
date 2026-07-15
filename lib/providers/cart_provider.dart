@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/api_models.dart';
 import '../services/api_service.dart';
+import '../services/cart_service.dart';
 
 class CartProvider extends ChangeNotifier {
   // ── State ────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _cart = await ApiService().getCart(userId);
+      _cart = await CartService().getCart(userId);
       // Mặc định chọn tất cả sản phẩm
       _selectedIds
         ..clear()
@@ -64,7 +65,7 @@ class CartProvider extends ChangeNotifier {
 
   Future<void> addItem(int userId, int productId, int quantity) async {
     try {
-      _cart = await ApiService().addToCart(userId, productId, quantity);
+      _cart = await CartService().addToCart(userId, productId, quantity);
       // Tự động chọn sản phẩm vừa thêm
       _selectedIds.add(productId);
       notifyListeners();
@@ -104,7 +105,7 @@ class CartProvider extends ChangeNotifier {
     }
 
     try {
-      _cart = await ApiService().updateCartItem(userId, productId, quantity);
+      _cart = await CartService().updateCartItem(userId, productId, quantity);
       notifyListeners();
     } on ApiException catch (e) {
       // Rollback
@@ -142,7 +143,7 @@ class CartProvider extends ChangeNotifier {
     }
 
     try {
-      await ApiService().removeCartItem(userId, productId);
+      await CartService().removeCartItem(userId, productId);
     } on ApiException catch (e) {
       _error = e.message;
       // Refetch để đồng bộ lại
@@ -159,7 +160,7 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await ApiService().clearCart(userId);
+      await CartService().clearCart(userId);
     } on ApiException catch (e) {
       _cart = backup;
       _error = e.message;

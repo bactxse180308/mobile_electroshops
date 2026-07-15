@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import '../models/api_models.dart';
 import '../services/api_service.dart';
+import '../services/order_service.dart';
 
 class OrderProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
+  final OrderService _api = OrderService();
 
   List<OrderResponse> _orders = [];
   OrderResponse? _currentOrder;

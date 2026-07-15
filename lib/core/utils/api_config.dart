@@ -6,7 +6,7 @@ class ApiConfig {
   // Đổi giữa emulator và máy thật bằng cách bật/tắt cờ này.
   // true  -> Android Emulator (host = 10.0.2.2)
   // false -> Máy Android thật trên cùng WiFi (host = IP LAN của PC)
-  static const bool useEmulator = false;
+  static const bool useEmulator = true;
   // Truyền lúc chạy: flutter run --dart-define=API_HOST=192.168.x.x
   static const String _lanHost =
       String.fromEnvironment('API_HOST', defaultValue: '192.168.1.11');
