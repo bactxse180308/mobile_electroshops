@@ -79,6 +79,25 @@ class OrderSummary extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: AppSizes.p10),
             child: Divider(color: AppColors.border),
           ),
+          if (cart.discountAmount > 0) ...[
+            SummaryInfoRow(
+              label: 'Giảm giá',
+              value: '-${formatVND(cart.discountAmount.round())}',
+              labelStyle: const TextStyle(
+                fontSize: 13,
+                color: AppColors.mutedForeground,
+              ),
+              valueStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.destructive, // Hiển thị màu đỏ cho số tiền giảm
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSizes.p10),
+              child: Divider(color: AppColors.border),
+            ),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

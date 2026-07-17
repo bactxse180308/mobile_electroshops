@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/widgets/bottom_nav_bar.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/notification_provider.dart';
+import '../../../providers/favorite_provider.dart';
 import '../../../providers/chat_provider.dart';
 import '../../../providers/admin_chat_provider.dart';
 import 'home_screen.dart';
@@ -36,8 +37,9 @@ class _MainScreenState extends State<MainScreen> {
     _currentIndex = widget.initialIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      if (auth.isAuthenticated) {
+      if (auth.isAuthenticated && auth.userId != null) {
         context.read<NotificationProvider>().fetchNotifications();
+        context.read<FavoriteProvider>().loadWishlist(auth.userId!);
         // Kết nối chat realtime để đếm tin chưa đọc (badge) theo vai trò.
         if (auth.role == 'ADMIN') {
           context.read<AdminChatProvider>().start();

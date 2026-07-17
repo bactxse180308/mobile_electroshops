@@ -10,7 +10,8 @@ import '../../../core/widgets/custom_checkbox.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../widgets/cart_header.dart';
-import '../widgets/cart_item_card.dart';
+import '../widgets/cart_item_list.dart';
+import '../widgets/discount_code_input.dart';
 import '../../order/widgets/order_summary.dart';
 import '../../checkout/widgets/checkout_bar.dart';
 
@@ -147,32 +148,29 @@ class _CartScreenState extends State<CartScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                ...items.map((item) => CartItemCard(
-                  item: item,
-                  selected: cart.selectedIds.contains(item.productId),
-                  onToggle: () => cart.toggleSelect(item.productId),
-                  onIncrease: () {
+                CartItemList(
+                  items: items,
+                  selectedIds: cart.selectedIds,
+                  onToggle: cart.toggleSelect,
+                  onUpdateQuantity: (productId, quantity) {
                     final uid = auth.userId;
                     if (uid == null) return;
-                    cart.updateQty(uid, item.productId, item.quantity + 1);
+                    cart.updateQty(uid, productId, quantity);
                   },
-                  onDecrease: () {
+                  onRemove: (productId) async {
                     final uid = auth.userId;
                     if (uid == null) return;
-                    if (item.quantity > 1) {
-                      cart.updateQty(uid, item.productId, item.quantity - 1);
-                    }
-                  },
-                  onRemove: () async {
-                    final uid = auth.userId;
-                    if (uid == null) return;
-                    await cart.removeItem(uid, item.productId);
+                    await cart.removeItem(uid, productId);
                     if (mounted && cart.error != null) {
                       _showError(cart.error!);
                       cart.clearError();
                     }
                   },
-                )),
+                ),
+
+                // Mã giảm giá
+                const DiscountCodeInput(),
+                const SizedBox(height: AppSizes.p12),
 
                 // Tóm tắt đơn hàng
                 OrderSummary(cart: cart),

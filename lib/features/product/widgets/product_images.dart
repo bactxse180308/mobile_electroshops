@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../../../providers/favorite_provider.dart';
+import '../../../../providers/auth_provider.dart';
 
 class ProductImages extends StatefulWidget {
+  final int productId;
   final List<String> images;
-  const ProductImages({super.key, required this.images});
+  const ProductImages({super.key, required this.productId, required this.images});
 
   @override
   State<ProductImages> createState() => _ProductImagesState();
@@ -68,7 +72,31 @@ class _ProductImagesState extends State<ProductImages> {
               right: AppSizes.p12,
               child: Row(
                 children: [
-                  _CircleBtn(icon: Icons.favorite_border, onTap: () {}),
+                  Consumer<FavoriteProvider>(
+                    builder: (context, fav, _) {
+                      final isFav = fav.isFavorite(widget.productId);
+                      return _CircleBtn(
+                        icon: isFav ? Icons.favorite : Icons.favorite_border,
+                        iconColor: isFav ? AppColors.destructive : AppColors.secondary,
+                        onTap: () {
+                          final auth = context.read<AuthProvider>();
+                          if (!auth.isAuthenticated || auth.userId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Vui lòng đăng nhập để sử dụng tính năng này')),
+                            );
+                            return;
+                          }
+                          fav.toggleFavorite(auth.userId!, widget.productId).catchError((e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString()), backgroundColor: AppColors.destructive),
+                              );
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
                   const SizedBox(width: AppSizes.p8),
                   _CircleBtn(icon: Icons.share_outlined, onTap: () {}),
                 ],
@@ -135,7 +163,8 @@ class _ProductImagesState extends State<ProductImages> {
 class _CircleBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _CircleBtn({required this.icon, required this.onTap});
+  final Color? iconColor;
+  const _CircleBtn({required this.icon, required this.onTap, this.iconColor});
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +178,7 @@ class _CircleBtn extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: AppShadows.card,
         ),
-        child: Icon(icon, size: AppSizes.iconMd, color: AppColors.secondary),
+        child: Icon(icon, size: AppSizes.iconMd, color: iconColor ?? AppColors.secondary),
       ),
     );
   }
