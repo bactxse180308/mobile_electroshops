@@ -9,6 +9,8 @@ import 'providers/notification_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/payment_provider.dart';
+import 'providers/favorite_provider.dart';
+import 'providers/home_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/admin_chat_provider.dart';
 import 'features/chat/services/chat_api.dart';
@@ -55,6 +57,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(
           create: (_) => ChatProvider(
             api: ChatApi(),

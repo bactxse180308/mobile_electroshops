@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/api_models.dart';
 import '../services/api_service.dart';
 import '../services/cart_service.dart';
+import '../services/voucher_service.dart';
 
 class CartProvider extends ChangeNotifier {
   // ── State ────────────────────────────────────────────────────────────────
@@ -12,11 +13,17 @@ class CartProvider extends ChangeNotifier {
   // Danh sách productId được chọn để checkout
   final Set<int> _selectedIds = {};
 
+  // Voucher
+  ApiVoucherResponse? _appliedVoucher;
+  String? _voucherError;
+
   // ── Getters ──────────────────────────────────────────────────────────────
   ApiCartResponse? get cart => _cart;
   List<ApiCartItemResponse> get items => _cart?.items ?? [];
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get voucherError => _voucherError;
+  ApiVoucherResponse? get appliedVoucher => _appliedVoucher;
 
   int get totalCount => items.fold(0, (sum, i) => sum + i.quantity);
 
@@ -34,7 +41,22 @@ class CartProvider extends ChangeNotifier {
   /// Phí ship: miễn phí nếu đơn ≥ 500k
   double get shippingFee => selectedSubtotal >= 500000 ? 0 : 25000;
 
-  double get totalPayable => selectedSubtotal + shippingFee;
+  double get discountAmount {
+    if (_appliedVoucher == null || selectedSubtotal < _appliedVoucher!.minOrderValue) return 0.0;
+    if (_appliedVoucher!.discountType == 'PERCENTAGE') {
+      final calculated = selectedSubtotal * (_appliedVoucher!.discountValue / 100);
+      if (_appliedVoucher!.maxDiscount > 0 && calculated > _appliedVoucher!.maxDiscount) {
+        return _appliedVoucher!.maxDiscount;
+      }
+      return calculated;
+    }
+    return _appliedVoucher!.discountValue;
+  }
+
+  double get totalPayable {
+    final t = selectedSubtotal + shippingFee - discountAmount;
+    return t > 0 ? t : 0;
+  }
 
   // ── Load từ BE ────────────────────────────────────────────────────────────
 
@@ -200,6 +222,39 @@ class CartProvider extends ChangeNotifier {
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  void clearVoucherError() {
+    _voucherError = null;
+    notifyListeners();
+  }
+
+  // ── Voucher ──────────────────────────────────────────────────────────────
+
+  Future<void> applyDiscountCode(String code, int userId) async {
+    _isLoading = true;
+    _voucherError = null;
+    notifyListeners();
+
+    try {
+      final voucherService = VoucherService();
+      _appliedVoucher = await voucherService.validateAndGetVoucher(code, userId, selectedSubtotal);
+    } on ApiException catch (e) {
+      _voucherError = e.message;
+      _appliedVoucher = null;
+    } catch (e) {
+      _voucherError = e.toString();
+      _appliedVoucher = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void removeDiscountCode() {
+    _appliedVoucher = null;
+    _voucherError = null;
     notifyListeners();
   }
 }
