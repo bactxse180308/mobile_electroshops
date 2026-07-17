@@ -9,6 +9,7 @@ import 'providers/notification_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/payment_provider.dart';
+import 'providers/store_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/admin_chat_provider.dart';
 import 'features/chat/services/chat_api.dart';
@@ -30,6 +31,7 @@ import 'features/order/screens/order_detail_screen.dart';
 import 'features/checkout/screens/checkout_screen.dart';
 import 'features/payment/screens/vnpay_payment_screen.dart';
 import 'features/payment/screens/vnpay_result_screen.dart';
+import 'services/deep_link_service.dart';
 
 Future<String?> _readAccessToken() async {
   final prefs = await SharedPreferences.getInstance();
@@ -38,6 +40,7 @@ Future<String?> _readAccessToken() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DeepLinkService.instance.init();
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -55,6 +58,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider(create: (_) => StoreProvider()),
         ChangeNotifierProvider(
           create: (_) => ChatProvider(
             api: ChatApi(),

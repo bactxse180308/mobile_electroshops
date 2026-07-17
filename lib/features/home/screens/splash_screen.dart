@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/order_provider.dart';
+import '../../../services/deep_link_service.dart';
+import '../../../services/payment_result_resolver.dart';
+import '../../payment/screens/vnpay_result_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_sizes.dart';
@@ -30,14 +34,74 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Timer(const Duration(milliseconds: 1800), () async {
       if (!mounted) return;
       final isLoggedIn = await context.read<AuthProvider>().tryAutoLogin();
-      if (mounted) {
-        if (isLoggedIn) {
-          Navigator.pushReplacementNamed(context, AppRoutes.main);
-        } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      if (!mounted) return;
+
+      final pendingUri = await DeepLinkService.instance.consumePendingLink();
+      if (!mounted) return;
+
+      if (pendingUri != null && isLoggedIn) {
+        final orderIdStr = pendingUri.queryParameters['orderId'];
+        final statusStr = pendingUri.queryParameters['status'];
+        final txnRefStr = pendingUri.queryParameters['txnRef'];
+
+        if (orderIdStr != null) {
+          final orderId = int.tryParse(orderIdStr);
+          if (orderId != null) {
+            _handleColdStartPaymentResult(orderId, statusStr, txnRefStr);
+            return;
+          }
         }
       }
+
+      if (isLoggedIn) {
+        Navigator.pushReplacementNamed(context, AppRoutes.main);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      }
     });
+  }
+
+  Future<void> _handleColdStartPaymentResult(int orderId, String? statusStr, String? txnRefStr) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    final authProvider = context.read<AuthProvider>();
+    final orderProvider = context.read<OrderProvider>();
+    final token = authProvider.accessToken ?? '';
+
+    final resolution = await PaymentResultResolver.resolve(
+      orderId: orderId,
+      token: token,
+      statusStr: statusStr,
+      txnRefStr: txnRefStr,
+      orderProvider: orderProvider,
+      fallbackOrder: null,
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    if (resolution == null) {
+      Navigator.pushReplacementNamed(context, AppRoutes.main);
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VNPayResultScreen(
+          isSuccess: resolution.isSuccess,
+          order: resolution.order,
+          result: resolution.result,
+          syncWarning: resolution.syncWarning,
+        ),
+      ),
+    );
   }
 
   @override

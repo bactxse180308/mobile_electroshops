@@ -17,11 +17,11 @@ dependencies:
   flutter_html: ^3.0.0-beta.2
   url_launcher: ^6.3.0
   qr_flutter: ^4.1.0
-  webview_flutter: ^4.10.0
   stomp_dart_client: ^2.0.0
   flutter_dotenv: ">=5.1.0 <6.0.0"
   geolocator: ">=13.0.0 <15.0.0"
   maplibre_gl: ">=0.20.0 <1.0.0"
+  app_links: ^6.1.1
 
 
 dev_dependencies:

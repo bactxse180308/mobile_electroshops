@@ -6,7 +6,7 @@ import '../models/chat_message.dart';
 /// Nhận tin realtime qua STOMP (subscribe `/user/queue/messages`).
 /// Client KHÔNG gửi qua WS — chỉ subscribe để nhận; gửi tin đi qua REST.
 class ChatSocket {
-  final String wsUrl; // ApiConfig.wsUrl: ws://10.0.2.2:8080/ws-native
+  final String wsUrl; // ApiConfig.wsUrl: ws://192.168.1.11:8080/ws-native (hoặc ws://10.0.2.2:8080/ws-native cho emulator)
   final Future<String?> Function() tokenProvider;
   StompClient? _client;
 

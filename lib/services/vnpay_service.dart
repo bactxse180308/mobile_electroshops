@@ -69,14 +69,39 @@ class VNPayService {
   }
 
   VNPayReturnParams? parseReturnUrl(String url) {
+    debugPrint('══════════════════════════════════════════════════════');
+    debugPrint('parseReturnUrl() CALLED');
+    debugPrint('INPUT URL: $url');
+    
     final uri = Uri.tryParse(url);
-    if (uri == null) return null;
+    if (uri == null) {
+      debugPrint('MATCH = FALSE (Invalid URI)');
+      debugPrint('══════════════════════════════════════════════════════');
+      return null;
+    }
+
+    debugPrint('PATH: ${uri.path}');
+    debugPrint('HOST: ${uri.host}');
+    debugPrint('SCHEME: ${uri.scheme}');
+    debugPrint('QUERY: ${uri.query}');
+    debugPrint('QUERY PARAMS: ${uri.queryParameters.keys.toList()}');
 
     final isReturnPath = uri.path.contains('/payment/vnpay/return') ||
         uri.path.contains('/payments/vnpay/return');
     final hasVNPayResult = uri.queryParameters.containsKey('vnp_ResponseCode');
-    if (!isReturnPath && !hasVNPayResult) return null;
+    
+    debugPrint('isReturnPath: $isReturnPath');
+    debugPrint('hasVNPayResult: $hasVNPayResult');
 
+    if (!isReturnPath && !hasVNPayResult) {
+      debugPrint('MATCH = FALSE');
+      debugPrint('══════════════════════════════════════════════════════');
+      return null;
+    }
+
+    debugPrint('MATCH = TRUE');
+    debugPrint('vnp_ResponseCode: ${uri.queryParameters['vnp_ResponseCode']}');
+    debugPrint('══════════════════════════════════════════════════════');
     return VNPayReturnParams.fromUri(uri);
   }
 

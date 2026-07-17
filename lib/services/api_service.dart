@@ -8,7 +8,7 @@ import '../models/api_models.dart';
 
 /// Service trung tâm để giao tiếp với Spring Boot backend.
 class ApiService {
-  // true -> Emulator (10.0.2.2). false -> Máy thật (IP LAN của PC).
+  // true -> Emulator (10.0.2.2). false -> Máy thật (IP LAN 192.168.1.11 của PC).
   static const bool _useEmulator = false;
   // Truyền lúc chạy: flutter run --dart-define=API_HOST=192.168.x.x
   static const String _lanHost =
