@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_strings.dart';
-import '../features/chat/models/chat_message.dart';
-import '../features/chat/models/sender_role.dart';
-import '../features/chat/services/chat_api.dart';
-import '../features/chat/services/chat_socket.dart';
+import '../models/chat_message.dart';
+import '../models/sender_role.dart';
+import '../services/chat_api.dart';
+import '../services/chat_socket.dart';
 
 enum ChatStatus { initial, loading, success, empty, error }
 

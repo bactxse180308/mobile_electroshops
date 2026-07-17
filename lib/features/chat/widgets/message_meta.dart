@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
-import '../models/chat_message.dart';
+import '../../../models/chat_message.dart';
 
 /// Thời gian gửi + trạng thái (đã gửi / đã đọc) — chỉ tin cuối của khách mới hiện trạng thái.
 class MessageMeta extends StatelessWidget {

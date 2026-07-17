@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_strings.dart';
-import '../features/chat/models/chat_message.dart';
-import '../features/chat/models/conversation.dart';
-import '../features/chat/models/sender_role.dart';
-import '../features/chat/services/admin_chat_api.dart';
-import '../features/chat/services/chat_socket.dart';
+import '../models/chat_message.dart';
+import '../models/conversation.dart';
+import '../models/sender_role.dart';
+import '../services/admin_chat_api.dart';
+import '../services/chat_socket.dart';
 import 'chat_provider.dart' show ChatStatus;
 
 /// Chat State (phía ADMIN) — global: danh sách hội thoại + hội thoại đang mở.

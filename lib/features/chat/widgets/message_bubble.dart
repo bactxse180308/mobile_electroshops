@@ -3,7 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_utils.dart';
 import '../../product/screens/product_detail_screen.dart';
-import '../models/chat_message.dart';
+import '../../../models/chat_message.dart';
 import 'message_meta.dart';
 import 'staff_avatar.dart';
 

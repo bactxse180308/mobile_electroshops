@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../providers/chat_provider.dart';
-import '../models/chat_message.dart';
+import '../../../models/chat_message.dart';
 import 'message_bubble.dart';
 
 /// Khung chat: lịch sử tin nhắn + cuộn lên tải tin cũ + loading/empty/error.

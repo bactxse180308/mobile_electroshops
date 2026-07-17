@@ -4,7 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../providers/admin_chat_provider.dart';
 import '../../../providers/chat_provider.dart' show ChatStatus;
-import '../models/conversation.dart';
+import '../../../models/conversation.dart';
 import 'admin_chat_detail_screen.dart';
 
 /// Inbox admin: danh sách hội thoại của khách, có badge tin chưa đọc.

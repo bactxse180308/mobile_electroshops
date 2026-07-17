@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../../core/utils/api_config.dart';
+import '../core/utils/api_config.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 

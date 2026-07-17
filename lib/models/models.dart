@@ -202,22 +202,6 @@ class NotifModel {
   });
 }
 
-enum ChatFrom { me, staff, system }
-
-class ChatMessage {
-  final String id;
-  final ChatFrom from;
-  final String text;
-  final String time;
-
-  const ChatMessage({
-    required this.id,
-    required this.from,
-    required this.text,
-    required this.time,
-  });
-}
-
 class CartItem {
   final String id;
   int qty;

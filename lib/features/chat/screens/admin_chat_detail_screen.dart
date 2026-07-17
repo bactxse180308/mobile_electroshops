@@ -4,7 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../providers/admin_chat_provider.dart';
 import '../../../providers/chat_provider.dart' show ChatStatus;
-import '../models/chat_message.dart';
+import '../../../models/chat_message.dart';
 import '../widgets/message_bubble.dart';
 
 /// Màn admin trả lời 1 hội thoại của khách.

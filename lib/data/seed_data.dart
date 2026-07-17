@@ -145,13 +145,6 @@ List<NotifModel> get initialNotifications => [
   NotifModel(id: 'n5', type: NotifType.order, title: 'Đơn hàng #ES2024998', body: 'Đã giao thành công - đánh giá ngay', time: '2 ngày trước', unread: false),
 ];
 
-const chatSeed = <ChatMessage>[
-  ChatMessage(id: 'c1', from: ChatFrom.system, text: 'Hôm nay, 14:20', time: ''),
-  ChatMessage(id: 'c2', from: ChatFrom.staff, text: 'Xin chào! ElectroShop có thể giúp gì cho bạn?', time: '14:20'),
-  ChatMessage(id: 'c3', from: ChatFrom.me, text: 'Cho mình hỏi RAM Kingston DDR5 còn hàng không ạ?', time: '14:21'),
-  ChatMessage(id: 'c4', from: ChatFrom.staff, text: 'Dạ còn ạ, hiện shop có 25 thanh sẵn kho. Bạn cần mã sản phẩm cụ thể không?', time: '14:22'),
-];
-
 Product? findProduct(String id) {
   try {
     return products.firstWhere((p) => p.id == id);
