@@ -7,11 +7,9 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/widgets/error_retry_view.dart';
 import '../../../models/models.dart';
 import '../widgets/product_detail_shimmer.dart';
-import '../../../models/api_models.dart';
-import '../../../services/api_service.dart';
-import '../../../services/product_service.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/product_detail_provider.dart';
 import '../widgets/product_images.dart';
 import '../widgets/product_price_card.dart';
 import '../widgets/product_shipping_card.dart';
@@ -20,85 +18,30 @@ import '../widgets/product_tab_container.dart';
 import '../widgets/related_products_section.dart';
 import '../widgets/product_detail_bottom_bar.dart';
 
-class ProductDetailScreen extends StatefulWidget {
+class ProductDetailScreen extends StatelessWidget {
   final String productId;
   const ProductDetailScreen({super.key, required this.productId});
 
   @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ProductDetailProvider()..loadProduct(productId),
+      child: const _ProductDetailView(),
+    );
+  }
 }
 
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  // ── UI state ───────────────────────────────────────────────────────────────
-  int _qty = 1;
-
-  // ── Data state ─────────────────────────────────────────────────────────────
-  Product? _product;
-  List<Product> _related = [];
-  List<ApiProductAttributeResponse> _attributes = [];
-  ApiPage<ApiReviewResponse>? _reviewsPage;
-  ApiRatingStatsResponse? _ratingStats;
-  bool _isLoading = true;
-  String? _errorMessage;
+class _ProductDetailView extends StatefulWidget {
+  const _ProductDetailView();
 
   @override
-  void initState() {
-    super.initState();
-    _loadProduct();
-  }
+  State<_ProductDetailView> createState() => _ProductDetailViewState();
+}
 
-  // ── Load product from API ──────────────────────────────────────────────────
-  Future<void> _loadProduct() async {
-    if (!mounted) return;
-    setState(() { _isLoading = true; _errorMessage = null; });
+class _ProductDetailViewState extends State<_ProductDetailView> {
+  int _qty = 1;
 
-    try {
-      final id = int.tryParse(widget.productId);
-      if (id == null) throw const ApiException(statusCode: 0, message: AppStrings.errInvalidProductId);
-
-      final api = ProductService();
-      final apiProduct = await api.getProductById(id);
-      final product = Product.fromApi(apiProduct);
-
-      // Lấy sản phẩm liên quan theo cùng danh mục
-      List<Product> related = [];
-      if (apiProduct.categoryId != null) {
-        final relatedPage = await api.getProducts(
-          categoryId: apiProduct.categoryId,
-          size: 8,
-        );
-        related = relatedPage.content
-            .where((p) => p.productId != id)
-            .take(6)
-            .map((p) => Product.fromApi(p))
-            .toList();
-      }
-
-      // Lấy attributes, reviews
-      final attrs = await api.getProductAttributes(id);
-      final stats = await api.getProductRatingStats(id);
-      final revs = await api.getProductReviews(id, size: 10);
-
-      if (!mounted) return;
-      setState(() {
-        _product = product;
-        _related = related;
-        _attributes = attrs;
-        _ratingStats = stats;
-        _reviewsPage = revs;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e is ApiException ? e.message : e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  // ── Add to cart qua API ────────────────────────────────────────────────────
-  Future<void> _addToCart(Product p, {required bool goToCart}) async {
+  Future<void> _addToCart(BuildContext context, Product p, {required bool goToCart}) async {
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated || auth.userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,11 +84,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const ProductDetailShimmer();
-    if (_errorMessage != null) {
+    final provider = context.watch<ProductDetailProvider>();
+
+    if (provider.isLoading) return const ProductDetailShimmer();
+    if (provider.errorMessage != null) {
       return Scaffold(
         appBar: AppBar(
           backgroundColor: AppColors.background,
@@ -156,56 +100,36 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         body: ErrorRetryView(
-          errorMessage: _errorMessage,
+          errorMessage: provider.errorMessage,
           title: AppStrings.errLoadProduct,
-          onRetry: _loadProduct,
+          onRetry: () => provider.loadProduct(provider.product?.id ?? ""),
         ),
       );
     }
-    if (_product == null) return _buildNotFound();
-    return _buildContent(_product!);
-  }
 
-  Widget _buildNotFound() {
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.productsTitle)),
-      body: const Center(child: Text(AppStrings.errProductNotFound, style: TextStyle(color: AppColors.mutedForeground))),
-    );
-  }
+    final p = provider.product;
+    if (p == null) return _buildNotFound();
 
-  // ── Main product content ───────────────────────────────────────────────────
-  Widget _buildContent(Product p) {
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Image gallery
-            ProductImages(images: p.images),
-
-            // Price + name card
+            ProductImages(productId: int.parse(p.id), images: p.images),
             ProductPriceCard(product: p),
-
-            // Shipping info
             const ProductShippingCard(),
-
-            // Quantity
             ProductQuantitySelector(
               quantity: _qty,
               stock: p.stock,
               onChanged: (val) => setState(() => _qty = val),
             ),
-
-            // Tabs
             ProductTabContainer(
               product: p,
-              attributes: _attributes,
-              ratingStats: _ratingStats,
-              reviews: _reviewsPage?.content ?? [],
+              attributes: provider.attributes,
+              ratingStats: provider.ratingStats,
+              reviews: provider.reviews,
             ),
-
-            // Related products
             RelatedProductsSection(
-              related: _related,
+              related: provider.related,
               onProductTap: (prod) {
                 Navigator.pushReplacement(
                   context,
@@ -221,9 +145,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
       bottomNavigationBar: ProductDetailBottomBar(
         product: p,
-        onAddToCart: () => _addToCart(p, goToCart: false),
-        onBuyNow: () => _addToCart(p, goToCart: true),
+        onAddToCart: () => _addToCart(context, p, goToCart: false),
+        onBuyNow: () => _addToCart(context, p, goToCart: true),
       ),
+    );
+  }
+
+  Widget _buildNotFound() {
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.productsTitle)),
+      body: const Center(child: Text(AppStrings.errProductNotFound, style: TextStyle(color: AppColors.mutedForeground))),
     );
   }
 }
