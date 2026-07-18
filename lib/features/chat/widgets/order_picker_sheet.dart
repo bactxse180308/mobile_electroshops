@@ -10,25 +10,24 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/order_provider.dart';
 import '../../order/widgets/order_status_utils.dart';
 
-Future<int?> showShippedOrderPicker(BuildContext context) {
+Future<int?> showOrderPicker(BuildContext context) {
   return showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => const ShippedOrderPickerSheet(),
+    builder: (_) => const OrderPickerSheet(),
   );
 }
 
-/// Bottom sheet chỉ tải đơn SHIPPED từ API, không lọc từ danh sách cũ ở UI.
-class ShippedOrderPickerSheet extends StatefulWidget {
-  const ShippedOrderPickerSheet({super.key});
+/// Bottom sheet tải tất cả đơn của khách để đính kèm vào chat.
+class OrderPickerSheet extends StatefulWidget {
+  const OrderPickerSheet({super.key});
 
   @override
-  State<ShippedOrderPickerSheet> createState() =>
-      _ShippedOrderPickerSheetState();
+  State<OrderPickerSheet> createState() => _OrderPickerSheetState();
 }
 
-class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
+class _OrderPickerSheetState extends State<OrderPickerSheet> {
   String? _localError;
 
   @override
@@ -47,7 +46,7 @@ class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
     }
 
     setState(() => _localError = null);
-    await context.read<OrderProvider>().fetchShippedOrders(token, userId);
+    await context.read<OrderProvider>().fetchAttachableOrders(token, userId);
   }
 
   @override
@@ -68,7 +67,7 @@ class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
                 AppSizes.p12,
               ),
               child: Text(
-                AppStrings.shippedOrdersTitle,
+                AppStrings.orderPickerTitle,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -85,18 +84,18 @@ class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
   }
 
   Widget _buildBody(OrderProvider orderProvider) {
-    if (orderProvider.isLoadingShippedOrders) {
+    if (orderProvider.isLoadingAttachableOrders) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final error = _localError ?? orderProvider.shippedOrdersError;
+    final error = _localError ?? orderProvider.attachableOrdersError;
     if (error != null) {
       return _OrderPickerError(onRetry: _loadOrders);
     }
 
-    final orders = orderProvider.shippedOrders;
+    final orders = orderProvider.attachableOrders;
     if (orders.isEmpty) {
-      return const _EmptyShippedOrders();
+      return const _EmptyOrders();
     }
 
     return ListView.separated(
@@ -105,7 +104,7 @@ class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
       separatorBuilder: (_, __) => const SizedBox(height: AppSizes.p8),
       itemBuilder: (context, index) {
         final order = orders[index];
-        return _ShippedOrderItem(
+        return _OrderPickerItem(
           order: order,
           onTap: () => Navigator.pop(context, order.orderId),
         );
@@ -114,11 +113,11 @@ class _ShippedOrderPickerSheetState extends State<ShippedOrderPickerSheet> {
   }
 }
 
-class _ShippedOrderItem extends StatelessWidget {
+class _OrderPickerItem extends StatelessWidget {
   final OrderResponse order;
   final VoidCallback onTap;
 
-  const _ShippedOrderItem({
+  const _OrderPickerItem({
     required this.order,
     required this.onTap,
   });
@@ -200,8 +199,8 @@ class _ShippedOrderItem extends StatelessWidget {
   }
 }
 
-class _EmptyShippedOrders extends StatelessWidget {
-  const _EmptyShippedOrders();
+class _EmptyOrders extends StatelessWidget {
+  const _EmptyOrders();
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +217,7 @@ class _EmptyShippedOrders extends StatelessWidget {
             ),
             SizedBox(height: AppSizes.p12),
             Text(
-              AppStrings.noShippedOrders,
+              AppStrings.noOrdersToAttach,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: AppColors.secondary,
@@ -226,7 +225,7 @@ class _EmptyShippedOrders extends StatelessWidget {
             ),
             SizedBox(height: AppSizes.p6),
             Text(
-              AppStrings.noShippedOrdersSubtitle,
+              AppStrings.noOrdersToAttachSubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

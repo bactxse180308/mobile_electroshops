@@ -116,15 +116,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   void _openSupportChat(OrderResponse order) {
-    final isShipped = order.orderStatus.toUpperCase() == 'SHIPPED';
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          attachOrderId: isShipped ? order.orderId : null,
-          initialMessage: isShipped
-              ? null
-              : '${AppStrings.orderSupportMessagePrefix}${order.orderId}',
+          attachOrderId: order.orderId,
         ),
       ),
     );
@@ -165,7 +161,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final shippingFee =
         order.finalAmount - order.totalAmount + order.discountAmount;
     final userRole = context.watch<AuthProvider>().role;
-    final isShipped = order.orderStatus.toUpperCase() == 'SHIPPED';
 
     return SingleChildScrollView(
       child: Column(
@@ -197,8 +192,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             showContact: userRole != 'ADMIN',
             canCancel: order.orderStatus.toUpperCase() == 'PENDING',
             isCancelling: orderProvider.isCancelling,
-            contactLabel:
-                isShipped ? AppStrings.askAboutThisOrder : AppStrings.contact,
+            contactLabel: AppStrings.askAboutThisOrder,
             onContact: () => _openSupportChat(order),
             onCancel: () => _showCancelDialog(order),
           ),

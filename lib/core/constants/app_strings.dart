@@ -263,18 +263,18 @@ class AppStrings {
   static const String chatEmpty = 'Chào bạn 👋 Hãy gửi tin nhắn để được ElectroShop hỗ trợ.';
   static const String chatLoadError = 'Không thể tải tin nhắn. Vui lòng thử lại.';
   static const String chatSendError = 'Gửi tin nhắn thất bại. Vui lòng thử lại.';
-  static const String attachShippedOrder = 'Đính kèm đơn đang giao';
-  static const String shippedOrdersTitle = 'Chọn đơn đang giao';
-  static const String noShippedOrders = 'Không có đơn đang giao';
-  static const String noShippedOrdersSubtitle =
-      'Chỉ đơn có trạng thái Đang giao mới có thể đính kèm.';
-  static const String orderAttachmentLoadError = 'Không thể tải đơn đang giao.';
+  static const String attachOrder = 'Đính kèm đơn hàng';
+  static const String orderPickerTitle = 'Chọn đơn hàng';
+  static const String noOrdersToAttach = 'Bạn chưa có đơn hàng';
+  static const String noOrdersToAttachSubtitle =
+      'Đơn hàng của bạn sẽ hiển thị tại đây.';
+  static const String orderAttachmentLoadError =
+      'Không thể tải danh sách đơn hàng.';
   static const String orderAttachmentSendError =
       'Không thể gửi đơn hàng. Vui lòng thử lại.';
   static const String orderStatusUpdating = 'Đang cập nhật';
   static const String orderTotalLabel = 'Tổng tiền';
   static const String orderPlacedDateLabel = 'Đặt ngày';
-  static const String orderSupportMessagePrefix = 'Tôi cần hỗ trợ đơn #';
   static const String adminChatTitle = 'Tin nhắn khách hàng';
   static const String adminEmptyConversations = 'Chưa có hội thoại nào';
   static const String adminCustomerFallback = 'Khách hàng';

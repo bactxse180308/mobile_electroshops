@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../providers/chat_provider.dart';
-import 'shipped_order_picker_sheet.dart';
+import 'order_picker_sheet.dart';
 
 const _quickReplies = [
   AppStrings.quickReplyStock,
@@ -57,9 +57,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
     }
   }
 
-  Future<void> _selectShippedOrder() async {
+  Future<void> _selectOrder() async {
     if (_sending) return;
-    final orderId = await showShippedOrderPicker(context);
+    final orderId = await showOrderPicker(context);
     if (!mounted || orderId == null) return;
     await _send(orderId: orderId);
   }
@@ -106,8 +106,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
           Row(
             children: [
               IconButton(
-                tooltip: AppStrings.attachShippedOrder,
-                onPressed: _sending ? null : _selectShippedOrder,
+                tooltip: AppStrings.attachOrder,
+                onPressed: _sending ? null : _selectOrder,
                 icon: const Icon(Icons.add_circle_outline),
                 color: AppColors.primary,
               ),

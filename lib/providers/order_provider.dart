@@ -14,9 +14,9 @@ class OrderProvider extends ChangeNotifier {
   String? _error;
   int _currentPage = 0;
   bool _hasMore = true;
-  List<OrderResponse> _shippedOrders = [];
-  bool _isLoadingShippedOrders = false;
-  String? _shippedOrdersError;
+  List<OrderResponse> _attachableOrders = [];
+  bool _isLoadingAttachableOrders = false;
+  String? _attachableOrdersError;
 
   List<OrderResponse> get orders => _orders;
   OrderResponse? get currentOrder => _currentOrder;
@@ -25,9 +25,10 @@ class OrderProvider extends ChangeNotifier {
   bool get isCancelling => _isCancelling;
   String? get error => _error;
   bool get hasMore => _hasMore;
-  List<OrderResponse> get shippedOrders => List.unmodifiable(_shippedOrders);
-  bool get isLoadingShippedOrders => _isLoadingShippedOrders;
-  String? get shippedOrdersError => _shippedOrdersError;
+  List<OrderResponse> get attachableOrders =>
+      List.unmodifiable(_attachableOrders);
+  bool get isLoadingAttachableOrders => _isLoadingAttachableOrders;
+  String? get attachableOrdersError => _attachableOrdersError;
 
   void clearError() {
     _error = null;
@@ -113,9 +114,9 @@ class OrderProvider extends ChangeNotifier {
   }
 
   /// State riêng cho picker chat, không ghi đè danh sách lịch sử đơn hàng.
-  Future<void> fetchShippedOrders(String token, int userId) async {
-    _isLoadingShippedOrders = true;
-    _shippedOrdersError = null;
+  Future<void> fetchAttachableOrders(String token, int userId) async {
+    _isLoadingAttachableOrders = true;
+    _attachableOrdersError = null;
     notifyListeners();
 
     try {
@@ -123,13 +124,12 @@ class OrderProvider extends ChangeNotifier {
         userId,
         token,
         size: 100,
-        status: 'SHIPPED',
       );
-      _shippedOrders = page.content;
+      _attachableOrders = page.content;
     } catch (e) {
-      _shippedOrdersError = e is ApiException ? e.message : e.toString();
+      _attachableOrdersError = e is ApiException ? e.message : e.toString();
     } finally {
-      _isLoadingShippedOrders = false;
+      _isLoadingAttachableOrders = false;
       notifyListeners();
     }
   }

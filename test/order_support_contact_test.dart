@@ -67,16 +67,15 @@ class _RecordingChatProvider extends ChatProvider {
 }
 
 void main() {
-  testWidgets('Contact sends order reference text for a pending order',
-      (tester) async {
+  testWidgets('Pending order sends the order attachment', (tester) async {
     final chatProvider = await _openSupportChat(
       tester,
       orderStatus: 'PENDING',
-      buttonLabel: AppStrings.contact,
+      buttonLabel: AppStrings.askAboutThisOrder,
     );
 
-    expect(chatProvider.sentText, 'Tôi cần hỗ trợ đơn #42');
-    expect(chatProvider.sentOrderId, isNull);
+    expect(chatProvider.sentText, isEmpty);
+    expect(chatProvider.sentOrderId, 42);
   });
 
   testWidgets('Ask about shipped order sends the order attachment',
