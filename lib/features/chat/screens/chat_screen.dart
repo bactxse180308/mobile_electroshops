@@ -14,10 +14,12 @@ class ChatScreen extends StatefulWidget {
   /// Nếu mở từ trang sản phẩm → tự đính kèm card sản phẩm vào hội thoại.
   final Product? attachProduct;
   final int? attachOrderId;
+  final String? initialMessage;
   const ChatScreen({
     super.key,
     this.attachProduct,
     this.attachOrderId,
+    this.initialMessage,
   });
 
   @override
@@ -25,11 +27,14 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  ChatProvider? _chatProvider;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<ChatProvider>();
+      _chatProvider = provider;
       await provider.enterChat();
       final p = widget.attachProduct;
       if (p != null && mounted) {
@@ -50,12 +55,24 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
       }
+      final initialMessage = widget.initialMessage?.trim();
+      if (initialMessage != null && initialMessage.isNotEmpty && mounted) {
+        try {
+          await provider.sendMessage(initialMessage);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text(AppStrings.chatSendError)),
+            );
+          }
+        }
+      }
     });
   }
 
   @override
   void dispose() {
-    context.read<ChatProvider>().leaveChat();
+    _chatProvider?.leaveChat();
     super.dispose();
   }
 

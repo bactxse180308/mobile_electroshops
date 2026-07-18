@@ -122,6 +122,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       MaterialPageRoute(
         builder: (_) => ChatScreen(
           attachOrderId: isShipped ? order.orderId : null,
+          initialMessage: isShipped
+              ? null
+              : '${AppStrings.orderSupportMessagePrefix}${order.orderId}',
         ),
       ),
     );

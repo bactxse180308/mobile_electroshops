@@ -274,6 +274,7 @@ class AppStrings {
   static const String orderStatusUpdating = 'Đang cập nhật';
   static const String orderTotalLabel = 'Tổng tiền';
   static const String orderPlacedDateLabel = 'Đặt ngày';
+  static const String orderSupportMessagePrefix = 'Tôi cần hỗ trợ đơn #';
   static const String adminChatTitle = 'Tin nhắn khách hàng';
   static const String adminEmptyConversations = 'Chưa có hội thoại nào';
   static const String adminCustomerFallback = 'Khách hàng';
