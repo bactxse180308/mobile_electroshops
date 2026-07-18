@@ -64,15 +64,21 @@ class ChatProvider extends ChangeNotifier {
     if (!_historyLoaded) {
       _status = ChatStatus.loading;
       notifyListeners();
-      try {
-        final history = await _api.getHistory(size: _pageSize);
+    }
+    try {
+      final history = await _api.getHistory(size: _pageSize);
+      if (!_historyLoaded) {
         _messages
           ..clear()
           ..addAll(history.reversed);
         _hasMore = history.length == _pageSize;
-        _historyLoaded = true;
-        _status = _messages.isEmpty ? ChatStatus.empty : ChatStatus.success;
-      } catch (_) {
+      } else {
+        _mergeRecentHistory(history);
+      }
+      _historyLoaded = true;
+      _status = _messages.isEmpty ? ChatStatus.empty : ChatStatus.success;
+    } catch (_) {
+      if (!_historyLoaded) {
         _errorMessage = AppStrings.chatLoadError;
         _status = ChatStatus.error;
         notifyListeners();
@@ -91,10 +97,18 @@ class ChatProvider extends ChangeNotifier {
     _viewing = false;
   }
 
-  Future<void> sendMessage(String text, {int? productId}) async {
+  Future<void> sendMessage(
+    String text, {
+    int? productId,
+    int? orderId,
+  }) async {
     final content = text.trim();
-    if (content.isEmpty && productId == null) return;
-    final sent = await _api.sendText(content, productId: productId);
+    if (content.isEmpty && productId == null && orderId == null) return;
+    final sent = await _api.sendText(
+      content,
+      productId: productId,
+      orderId: orderId,
+    );
     _appendUnique(sent);
     _status = ChatStatus.success;
     notifyListeners();
@@ -105,7 +119,8 @@ class ChatProvider extends ChangeNotifier {
     _loadingOlder = true;
     notifyListeners();
     try {
-      final older = await _api.getHistory(before: _messages.first.id, size: _pageSize);
+      final older =
+          await _api.getHistory(before: _messages.first.id, size: _pageSize);
       _messages.insertAll(0, older.reversed);
       _hasMore = older.length == _pageSize;
     } catch (_) {}
@@ -136,6 +151,19 @@ class ChatProvider extends ChangeNotifier {
   void _appendUnique(ChatMessage m) {
     if (_messages.any((x) => x.id == m.id)) return;
     _messages.add(m);
+  }
+
+  /// Thay thế các tin gần nhất bằng response mới để card đơn nhận status live.
+  void _mergeRecentHistory(List<ChatMessage> recentMessages) {
+    for (final message in recentMessages) {
+      final index = _messages.indexWhere((item) => item.id == message.id);
+      if (index == -1) {
+        _messages.add(message);
+      } else {
+        _messages[index] = message;
+      }
+    }
+    _messages.sort((first, second) => first.id.compareTo(second.id));
   }
 
   /// Gọi khi đăng xuất: ngắt socket & xoá sạch state.

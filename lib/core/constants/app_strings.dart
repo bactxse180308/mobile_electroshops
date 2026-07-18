@@ -39,7 +39,7 @@ class AppStrings {
   static const String googleLogin = 'Tiếp tục với Google';
   static const String dontHaveAccount = 'Chưa có tài khoản? ';
   static const String alreadyHaveAccount = 'Đã có tài khoản? ';
-  
+
   // Auth Validation & Errors
   static const String errEmptyFields = 'Vui lòng nhập đầy đủ thông tin.';
   static const String errInvalidEmail = 'Email không đúng định dạng.';
@@ -49,7 +49,7 @@ class AppStrings {
   static const String errUnverifiedAccount = 'Tài khoản chưa được kích hoạt. Đã gửi mã OTP xác thực tới email của bạn.';
   static const String errCannotSendOtp = 'Tài khoản chưa kích hoạt. Không thể gửi mã OTP: ';
   static const String errGoogleLoginFailed = 'Đăng nhập Google thất bại: ';
-  
+
   // Google Login Simulation
   static const String simGoogleTitle = 'Mô phỏng Google Login';
   static const String simGoogleActualErr = 'Lỗi thực tế: ';
@@ -155,6 +155,7 @@ class AppStrings {
   static const String orderTracking = 'Theo dõi đơn hàng';
   static const String discount = 'Giảm giá';
   static const String contact = 'Liên hệ';
+  static const String askAboutThisOrder = 'Hỏi về đơn này';
   static const String cancelOrder = 'Huỷ đơn';
   static const String orderConfirmed = 'Đã xác nhận';
   static const String orderShipping = 'Đang giao';
@@ -215,14 +216,14 @@ class AppStrings {
   static const String tabUnread = 'Chưa đọc';
   static const String noNotifTitle = 'Bạn chưa có thông báo nào';
   static const String noNotifSub = 'Bạn sẽ nhận được thông báo về đơn hàng và khuyến mãi tại đây.';
-  
+
   static const String storesTitle = 'Cửa hàng';
   static const String ourStores = 'Cửa hàng của chúng tôi';
   static const String storesCount = 'cửa hàng';
   static const String openStatus = 'Mở cửa';
   static const String callButton = 'Gọi';
   static const String directionsButton = 'Chỉ đường';
-  
+
   static const String profileTitle = 'Tài khoản';
 
   // Onboarding
@@ -262,6 +263,17 @@ class AppStrings {
   static const String chatEmpty = 'Chào bạn 👋 Hãy gửi tin nhắn để được ElectroShop hỗ trợ.';
   static const String chatLoadError = 'Không thể tải tin nhắn. Vui lòng thử lại.';
   static const String chatSendError = 'Gửi tin nhắn thất bại. Vui lòng thử lại.';
+  static const String attachShippedOrder = 'Đính kèm đơn đang giao';
+  static const String shippedOrdersTitle = 'Chọn đơn đang giao';
+  static const String noShippedOrders = 'Không có đơn đang giao';
+  static const String noShippedOrdersSubtitle =
+      'Chỉ đơn có trạng thái Đang giao mới có thể đính kèm.';
+  static const String orderAttachmentLoadError = 'Không thể tải đơn đang giao.';
+  static const String orderAttachmentSendError =
+      'Không thể gửi đơn hàng. Vui lòng thử lại.';
+  static const String orderStatusUpdating = 'Đang cập nhật';
+  static const String orderTotalLabel = 'Tổng tiền';
+  static const String orderPlacedDateLabel = 'Đặt ngày';
   static const String adminChatTitle = 'Tin nhắn khách hàng';
   static const String adminEmptyConversations = 'Chưa có hội thoại nào';
   static const String adminCustomerFallback = 'Khách hàng';

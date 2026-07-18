@@ -115,10 +115,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  void _openSupportChat() {
+  void _openSupportChat(OrderResponse order) {
+    final isShipped = order.orderStatus.toUpperCase() == 'SHIPPED';
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ChatScreen()),
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          attachOrderId: isShipped ? order.orderId : null,
+        ),
+      ),
     );
   }
 
@@ -157,6 +162,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final shippingFee =
         order.finalAmount - order.totalAmount + order.discountAmount;
     final userRole = context.watch<AuthProvider>().role;
+    final isShipped = order.orderStatus.toUpperCase() == 'SHIPPED';
 
     return SingleChildScrollView(
       child: Column(
@@ -188,7 +194,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             showContact: userRole != 'ADMIN',
             canCancel: order.orderStatus.toUpperCase() == 'PENDING',
             isCancelling: orderProvider.isCancelling,
-            onContact: _openSupportChat,
+            contactLabel:
+                isShipped ? AppStrings.askAboutThisOrder : AppStrings.contact,
+            onContact: () => _openSupportChat(order),
             onCancel: () => _showCancelDialog(order),
           ),
         ],

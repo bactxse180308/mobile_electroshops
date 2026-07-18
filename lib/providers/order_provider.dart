@@ -14,6 +14,9 @@ class OrderProvider extends ChangeNotifier {
   String? _error;
   int _currentPage = 0;
   bool _hasMore = true;
+  List<OrderResponse> _shippedOrders = [];
+  bool _isLoadingShippedOrders = false;
+  String? _shippedOrdersError;
 
   List<OrderResponse> get orders => _orders;
   OrderResponse? get currentOrder => _currentOrder;
@@ -22,6 +25,9 @@ class OrderProvider extends ChangeNotifier {
   bool get isCancelling => _isCancelling;
   String? get error => _error;
   bool get hasMore => _hasMore;
+  List<OrderResponse> get shippedOrders => List.unmodifiable(_shippedOrders);
+  bool get isLoadingShippedOrders => _isLoadingShippedOrders;
+  String? get shippedOrdersError => _shippedOrdersError;
 
   void clearError() {
     _error = null;
@@ -102,6 +108,28 @@ class OrderProvider extends ChangeNotifier {
       return null;
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// State riêng cho picker chat, không ghi đè danh sách lịch sử đơn hàng.
+  Future<void> fetchShippedOrders(String token, int userId) async {
+    _isLoadingShippedOrders = true;
+    _shippedOrdersError = null;
+    notifyListeners();
+
+    try {
+      final page = await _api.getMyOrders(
+        userId,
+        token,
+        size: 100,
+        status: 'SHIPPED',
+      );
+      _shippedOrders = page.content;
+    } catch (e) {
+      _shippedOrdersError = e is ApiException ? e.message : e.toString();
+    } finally {
+      _isLoadingShippedOrders = false;
       notifyListeners();
     }
   }

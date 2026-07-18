@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_electroshops/core/utils/format_utils.dart';
+import 'package:mobile_electroshops/models/chat_message.dart';
 import 'package:mobile_electroshops/models/models.dart';
 
 void main() {
@@ -60,6 +61,29 @@ void main() {
       expect(product.freeShip, isTrue);
       expect(product.installment, isTrue);
       expect(product.badge, 'Mới');
+    });
+  });
+
+  group('Chat Message Model Unit Tests', () {
+    test('ChatMessage parses live order fields from backend response', () {
+      final message = ChatMessage.fromJson({
+        'id': 1,
+        'conversationId': 2,
+        'senderRole': 'CUSTOMER',
+        'content': '',
+        'read': false,
+        'createdAt': '2026-07-18T10:00:00',
+        'orderId': 42,
+        'orderStatus': 'DELIVERED',
+        'orderTotal': 1250000,
+        'orderDate': '2026-07-17T09:30:00',
+      });
+
+      expect(message.hasOrder, isTrue);
+      expect(message.orderId, 42);
+      expect(message.orderStatus, 'DELIVERED');
+      expect(message.orderTotal, 1250000);
+      expect(message.orderDate, DateTime(2026, 7, 17, 9, 30));
     });
   });
 }

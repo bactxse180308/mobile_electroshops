@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../providers/chat_provider.dart';
+import 'shipped_order_picker_sheet.dart';
 
 const _quickReplies = [
   AppStrings.quickReplyStock,
@@ -29,17 +30,26 @@ class _ChatInputBarState extends State<ChatInputBar> {
     super.dispose();
   }
 
-  Future<void> _send([String? preset]) async {
-    final text = (preset ?? _controller.text).trim();
-    if (text.isEmpty || _sending) return; // validate rỗng + chống gửi trùng
+  Future<void> _send({String? preset, int? orderId}) async {
+    final text = orderId == null ? (preset ?? _controller.text).trim() : '';
+    if ((text.isEmpty && orderId == null) || _sending) return;
     setState(() => _sending = true);
-    if (preset == null) _controller.clear();
+    if (preset == null && orderId == null) _controller.clear();
     try {
-      await context.read<ChatProvider>().sendMessage(text);
+      await context.read<ChatProvider>().sendMessage(
+            text,
+            orderId: orderId,
+          );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(AppStrings.chatSendError)),
+          SnackBar(
+            content: Text(
+              orderId == null
+                  ? AppStrings.chatSendError
+                  : AppStrings.orderAttachmentSendError,
+            ),
+          ),
         );
       }
     } finally {
@@ -47,10 +57,18 @@ class _ChatInputBarState extends State<ChatInputBar> {
     }
   }
 
+  Future<void> _selectShippedOrder() async {
+    if (_sending) return;
+    final orderId = await showShippedOrderPicker(context);
+    if (!mounted || orderId == null) return;
+    await _send(orderId: orderId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+          12, 8, 12, 8 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(top: BorderSide(color: AppColors.border)),
@@ -64,12 +82,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
               itemCount: _quickReplies.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, i) => GestureDetector(
-                onTap: _sending ? null : () => _send(_quickReplies[i]),
+                onTap: _sending ? null : () => _send(preset: _quickReplies[i]),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.05),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3)),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Center(
@@ -86,6 +105,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
           const SizedBox(height: 8),
           Row(
             children: [
+              IconButton(
+                tooltip: AppStrings.attachShippedOrder,
+                onPressed: _sending ? null : _selectShippedOrder,
+                icon: const Icon(Icons.add_circle_outline),
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -111,12 +137,14 @@ class _ChatInputBarState extends State<ChatInputBar> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: _sending ? null : () => _send(),
+                onTap: _sending ? null : _send,
                 child: Container(
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _sending ? AppColors.mutedForeground : AppColors.primary,
+                    color: _sending
+                        ? AppColors.mutedForeground
+                        : AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.send, size: 18, color: Colors.white),

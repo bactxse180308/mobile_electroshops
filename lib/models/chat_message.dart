@@ -18,6 +18,12 @@ class ChatMessage {
   final String? productImageUrl;
   final num? productPrice;
 
+  // orderId là link; các field còn lại được backend resolve live từ đơn hàng.
+  final int? orderId;
+  final String? orderStatus;
+  final num? orderTotal;
+  final DateTime? orderDate;
+
   const ChatMessage({
     required this.id,
     required this.conversationId,
@@ -31,11 +37,17 @@ class ChatMessage {
     this.productName,
     this.productImageUrl,
     this.productPrice,
+    this.orderId,
+    this.orderStatus,
+    this.orderTotal,
+    this.orderDate,
   });
 
   bool get isFromCustomer => senderRole == SenderRole.customer;
 
   bool get hasProduct => productId != null;
+
+  bool get hasOrder => orderId != null;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
         id: json['id'] as int,
@@ -50,6 +62,12 @@ class ChatMessage {
         productName: json['productName'] as String?,
         productImageUrl: json['productImageUrl'] as String?,
         productPrice: json['productPrice'] as num?,
+        orderId: json['orderId'] as int?,
+        orderStatus: json['orderStatus'] as String?,
+        orderTotal: json['orderTotal'] as num?,
+        orderDate: json['orderDate'] == null
+            ? null
+            : DateTime.parse(json['orderDate'] as String),
       );
 
   ChatMessage copyWith({bool? read}) => ChatMessage(
@@ -65,5 +83,9 @@ class ChatMessage {
         productName: productName,
         productImageUrl: productImageUrl,
         productPrice: productPrice,
+        orderId: orderId,
+        orderStatus: orderStatus,
+        orderTotal: orderTotal,
+        orderDate: orderDate,
       );
 }

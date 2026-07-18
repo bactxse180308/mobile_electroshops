@@ -13,7 +13,9 @@ class ChatApi {
   Future<Map<String, dynamic>> _decode(http.Response res) async {
     final body = utf8.decode(res.bodyBytes);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return body.isEmpty ? <String, dynamic>{} : json.decode(body) as Map<String, dynamic>;
+      return body.isEmpty
+          ? <String, dynamic>{}
+          : json.decode(body) as Map<String, dynamic>;
     }
     throw Exception('HTTP ${res.statusCode}');
   }
@@ -29,7 +31,8 @@ class ChatApi {
 
   /// Lịch sử tin nhắn (mới → cũ) theo cursor `before`.
   Future<List<ChatMessage>> getHistory({int? before, int size = 20}) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}$_base/conversation/messages').replace(
+    final url =
+        Uri.parse('${ApiConfig.baseUrl}$_base/conversation/messages').replace(
       queryParameters: {
         if (before != null) 'before': before.toString(),
         'size': size.toString(),
@@ -46,15 +49,22 @@ class ChatApi {
         .toList();
   }
 
-  /// Gửi tin text, có thể kèm sản phẩm ([productId]).
-  Future<ChatMessage> sendText(String content, {int? productId}) async {
+  /// Gửi tin text, có thể kèm sản phẩm hoặc đơn hàng.
+  Future<ChatMessage> sendText(
+    String content, {
+    int? productId,
+    int? orderId,
+  }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}$_base/messages');
     final headers = await ApiConfig.getHeaders();
     final res = await http
-        .post(url, headers: headers, body: json.encode({
-          'content': content,
-          if (productId != null) 'productId': productId,
-        }))
+        .post(url,
+            headers: headers,
+            body: json.encode({
+              'content': content,
+              if (productId != null) 'productId': productId,
+              if (orderId != null) 'orderId': orderId,
+            }))
         .timeout(_timeout);
     final j = await _decode(res);
     return ChatMessage.fromJson(j['data'] as Map<String, dynamic>);

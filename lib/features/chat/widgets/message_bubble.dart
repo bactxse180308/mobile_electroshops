@@ -5,6 +5,7 @@ import '../../../core/utils/format_utils.dart';
 import '../../product/screens/product_detail_screen.dart';
 import '../../../models/chat_message.dart';
 import 'message_meta.dart';
+import 'order_attachment_card.dart';
 import 'staff_avatar.dart';
 
 /// Bong bóng tin nhắn.
@@ -38,18 +39,21 @@ class _MineBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxWidth = MediaQuery.of(context).size.width * MessageBubble._maxWidthFactor;
+    final maxWidth =
+        MediaQuery.of(context).size.width * MessageBubble._maxWidthFactor;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (message.hasProduct) _ProductCard(message: message),
+          if (message.hasOrder) OrderAttachmentCard(message: message),
           if (message.content.isNotEmpty)
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxWidth),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.only(
@@ -76,14 +80,17 @@ class _OtherBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxWidth = MediaQuery.of(context).size.width * MessageBubble._maxWidthFactor;
-    final hasName = message.senderName != null && message.senderName!.isNotEmpty;
+    final maxWidth =
+        MediaQuery.of(context).size.width * MessageBubble._maxWidthFactor;
+    final hasName =
+        message.senderName != null && message.senderName!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StaffAvatar(name: message.senderName, avatarUrl: message.senderAvatarUrl),
+          StaffAvatar(
+              name: message.senderName, avatarUrl: message.senderAvatarUrl),
           const SizedBox(width: 8),
           Flexible(
             child: Column(
@@ -99,11 +106,13 @@ class _OtherBubble extends StatelessWidget {
                             color: AppColors.secondary)),
                   ),
                 if (message.hasProduct) _ProductCard(message: message),
+                if (message.hasOrder) OrderAttachmentCard(message: message),
                 if (message.content.isNotEmpty)
                   ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: maxWidth),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       decoration: const BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.only(
@@ -115,7 +124,8 @@ class _OtherBubble extends StatelessWidget {
                         boxShadow: AppShadows.card,
                       ),
                       child: Text(message.content,
-                          style: const TextStyle(fontSize: 14, color: AppColors.secondary)),
+                          style: const TextStyle(
+                              fontSize: 14, color: AppColors.secondary)),
                     ),
                   ),
                 MessageMeta(message: message, showStatus: false),
@@ -141,7 +151,8 @@ class _ProductCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(productId: '${message.productId}'),
+          builder: (_) =>
+              ProductDetailScreen(productId: '${message.productId}'),
         ),
       ),
       child: Container(
@@ -163,7 +174,8 @@ class _ProductCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 child: (imageUrl != null && imageUrl.isNotEmpty)
-                    ? Image.network(imageUrl, fit: BoxFit.cover,
+                    ? Image.network(imageUrl,
+                        fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _imgFallback())
                     : _imgFallback(),
               ),
@@ -177,12 +189,16 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary)),
                   const SizedBox(height: 4),
                   if (price != null)
                     Text(formatVND(price.round()),
                         style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary)),
                 ],
               ),
             ),
@@ -194,6 +210,7 @@ class _ProductCard extends StatelessWidget {
 
   Widget _imgFallback() => Container(
         color: AppColors.muted,
-        child: const Icon(Icons.image_outlined, color: AppColors.mutedForeground, size: 24),
+        child: const Icon(Icons.image_outlined,
+            color: AppColors.mutedForeground, size: 24),
       );
 }

@@ -9,6 +9,7 @@ class OrderActionButtons extends StatelessWidget {
   final bool showContact;
   final bool canCancel;
   final bool isCancelling;
+  final String contactLabel;
   final VoidCallback onContact;
   final VoidCallback onCancel;
 
@@ -17,6 +18,7 @@ class OrderActionButtons extends StatelessWidget {
     required this.showContact,
     required this.canCancel,
     required this.isCancelling,
+    required this.contactLabel,
     required this.onContact,
     required this.onCancel,
   });
@@ -37,15 +39,21 @@ class OrderActionButtons extends StatelessWidget {
           if (showContact)
             Expanded(
               child: AppButton(
-                label: AppStrings.contact,
+                label: contactLabel,
                 variant: AppButtonVariant.secondary,
                 onPressed: onContact,
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.phone_outlined, size: 16),
-                    SizedBox(width: AppSizes.p6),
-                    Text(AppStrings.contact),
+                    const Icon(Icons.chat_bubble_outline, size: 16),
+                    const SizedBox(width: AppSizes.p6),
+                    Flexible(
+                      child: Text(
+                        contactLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),

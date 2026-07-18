@@ -9,7 +9,8 @@ class OrderService {
     CreateOrderRequest request,
     int userId,
   ) async {
-    final j = await _api.authPost('/orders', request.toJson(), params: {'userId': userId.toString()});
+    final j = await _api.authPost('/orders', request.toJson(),
+        params: {'userId': userId.toString()});
     return OrderResponse.fromJson(j['data'] as Map<String, dynamic>);
   }
 
@@ -19,10 +20,12 @@ class OrderService {
     String token, {
     int page = 0,
     int size = 10,
+    String? status,
   }) async {
     final j = await _api.authGet('/orders/user/$userId', params: {
       'page': '$page',
       'size': '$size',
+      if (status != null) 'status': status,
     });
     return ApiPage.fromJson(
       j['data'] as Map<String, dynamic>,

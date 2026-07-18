@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../models/models.dart';
 import '../../../providers/chat_provider.dart';
 import '../widgets/chat_app_bar.dart';
@@ -12,7 +13,12 @@ import '../widgets/message_list.dart';
 class ChatScreen extends StatefulWidget {
   /// Nếu mở từ trang sản phẩm → tự đính kèm card sản phẩm vào hội thoại.
   final Product? attachProduct;
-  const ChatScreen({super.key, this.attachProduct});
+  final int? attachOrderId;
+  const ChatScreen({
+    super.key,
+    this.attachProduct,
+    this.attachOrderId,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -29,6 +35,20 @@ class _ChatScreenState extends State<ChatScreen> {
       if (p != null && mounted) {
         final pid = int.tryParse(p.id);
         if (pid != null) await provider.sendMessage('', productId: pid);
+      }
+      final orderId = widget.attachOrderId;
+      if (orderId != null && mounted) {
+        try {
+          await provider.sendMessage('', orderId: orderId);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(AppStrings.orderAttachmentSendError),
+              ),
+            );
+          }
+        }
       }
     });
   }
